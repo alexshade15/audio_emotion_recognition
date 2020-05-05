@@ -1,5 +1,4 @@
 import subprocess
-from subprocess import run, PIPE
 from os import listdir, path
 
 
@@ -35,8 +34,8 @@ def from_avi_to_wav():
     frame_step = 150
     for dataset, emotion, name in generate_files(base_dir):
         command = "ffmpeg -i " + base_dir + dataset + "/" + emotion + "/" + name + ".avi"
-        bash_output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
-        duration = to_milliseconds(bash_output.stdout)
+        bash_output = subprocess.check_output(command, shell=True)
+        duration = to_milliseconds(bash_output.decode("utf-8").strip("\n"))
         print(duration)
         i = 0
         d0 = 0
