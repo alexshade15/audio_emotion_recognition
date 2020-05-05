@@ -34,9 +34,7 @@ def from_avi_to_wav():
     frame_step = 150
     for dataset, emotion, name in generate_files(base_dir):
         command = "ffmpeg -y -i " + base_dir + dataset + "/" + emotion + "/" + name + ".avi temp_output.wav"
-        #print(command, "\n\n")
         bash_output = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-        #print("\n\n--", type(bash_output), bash_output.stdout, bash_output.stderr)
         duration = to_milliseconds(bash_output.stderr.decode("utf-8").split("Duration: ")[1].split(",")[0])
         i = 0
         d0 = 0
