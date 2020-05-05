@@ -41,24 +41,23 @@ def get_all_arff(path):
     return arffs
 
 
-def data_gen(feature_folder, batch_size, mode="train"):
+def data_gen(feature_folder, list_feature_vectors, batch_size, mode="train"):
     lbs = ["Angry", "Disgust"  "Fear", "Happy", "Neutral", "Sad", "Surprise"]
     lb = LabelBinarizer()
     lb.fit(lbs)
     c = 0
-    n1 = get_all_arff(feature_folder)  # List of training feature vector
     if mode == "train":
-        random.shuffle(n1)
+        random.shuffle(list_feature_vectors)
     while True:
         labels = []
         features = np.zeros((batch_size, 1582, 1)).astype('float')
         for i in range(c, c + batch_size):
-            features[i - c] = from_arff_to_feture(feature_folder + "/" + n1[i])
-            labels.append(n1[i].split("/")[0])
+            features[i - c] = from_arff_to_feture(feature_folder + "/" + list_feature_vectors[i])
+            labels.append(list_feature_vectors[i].split("/")[0])
         c += batch_size
-        if c + batch_size - 1 > len(n1):
+        if c + batch_size - 1 > len(list_feature_vectors):
             c = 0
-            random.shuffle(n1)
+            random.shuffle(list_feature_vectors)
             if mode == "eval":
                 break
         labels = lb.transform(np.array(labels))
@@ -74,12 +73,15 @@ def train_model(train_path, val_path, batch_size, epochs):
     model.add(Dense(7, activation='softmax'))
     model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
 
-    train_gen = data_gen(train_path, batch_size=batch_size)
-    val_gen = data_gen(val_path, batch_size=batch_size)
-    no_of_training_images = len(os.listdir(train_path))
-    no_of_val_images = len(os.listdir(val_path))
+    train_files = get_all_arff(train_path)
+    val_files = get_all_arff(val_path)
+    train_gen = data_gen(train_path, train_files, batch_size=batch_size)
+    val_gen = data_gen(val_path, val_files, batch_size=batch_size)
+    no_of_training_images = len(train_files)
+    no_of_val_images = len(val_files)
 
     tb_call_back = TensorBoard(log_dir="audio_logs", write_graph=True, write_images=True)
     history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
-                                  validation_data=val_gen, validation_steps=(no_of_val_images // batch_size))
+                                  validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
+                                  callbacks=[tb_call_back])
     # score = model.evaluate_generator(test_gen, no_of_test_images // batch_size)
