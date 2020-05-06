@@ -77,13 +77,13 @@ def from_avi_to_wav():
             subprocess.call(command, shell=True)
 
 
-def from_wav_to_feature():
+def from_wav_to_feature(cfg_file):
     base_dir = "/user/vlongobardi/wav/"
     feature_dir = "/user/vlongobardi/audio_feature/"
-    config = "/user/vlongobardi/opensmile-2.3.0/config/emobase2010.conf"
+    config_path = "/user/vlongobardi/opensmile-2.3.0/config/" + cfg_file
     # SMILExtract -C opensmile-2.3.0/config/emobase2010_2.conf -I test.wav -O output.arff -instname input
     for dataset, emotion, name in generate_files(base_dir):
-        command = "SMILExtract -C " + config + " -I " + base_dir + dataset + "/" + emotion + "/" + name + ".wav -O " + feature_dir + dataset + "/" + emotion + "/" + name + ".arff -instname " + name
+        command = "SMILExtract -C " + config_path + " -I " + base_dir + dataset + "/" + emotion + "/" + name + ".wav -O " + feature_dir + dataset + "/" + emotion + "/" + name + ".arff -instname " + name
         print(name, "\n\n\n")
         subprocess.call(command, shell=True)
 
