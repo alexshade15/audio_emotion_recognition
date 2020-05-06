@@ -125,3 +125,5 @@ dmypy.json
 .pyre/
 *.iml
 *.xml
+*.wav
+ssh_k*
