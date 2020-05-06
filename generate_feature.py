@@ -53,26 +53,34 @@ def from_avi_to_wav():
         command = "ffmpeg -t " + to_t_stamp(frame_size) + " -i " + base_dir + dataset + "/" + emotion + "/" + name + \
                   ".avi -ab 128k -ac 2 -ar 48000 -vn " + wav_dir + dataset + "/" + emotion + "/" + name + "_" + str(i) \
                   + ".wav"
+        print("\n\n", command)
         subprocess.call(command, shell=True)
+        if duration == 480:
+            continue
 
         while d0 < (duration - frame_size):
+            if duration in {550, 600, 620}:
+                d0 += frame_step
+                break
             i += 1
             command = "ffmpeg -ss " + to_t_stamp(d0) + " -t " + to_t_stamp(frame_size) + " -i " + base_dir + dataset + \
                       "/" + emotion + "/" + name + ".avi -ab 128k -ac 2 -ar 48000 -vn " + wav_dir + dataset + "/" + \
                       emotion + "/" + name + "_" + str(i) + ".wav"
+            print("\n\n", command)
             subprocess.call(command, shell=True)
             d0 += frame_step
         if d0 < duration:
             command = "ffmpeg -ss " + to_t_stamp(duration - frame_size) + " -t " + to_t_stamp(frame_size) + " -i " + \
                       base_dir + dataset + "/" + emotion + "/" + name + ".avi -ab 128k -ac 2 -ar 48000 -vn " + wav_dir \
                       + dataset + "/" + emotion + "/" + name + "_" + str(i+1) + ".wav"
+            print("\n\n", command)
             subprocess.call(command, shell=True)
 
 
 def from_wav_to_feature():
     base_dir = "/user/vlongobardi/wav/"
     feature_dir = "/user/vlongobardi/audio_feature/"
-    config = "/user/vlongobardi/opensmile-2.3.0/config/emobase2010_2.conf"
+    config = "/user/vlongobardi/opensmile-2.3.0/config/emobase2010.conf"
     # SMILExtract -C opensmile-2.3.0/config/emobase2010_2.conf -I test.wav -O output.arff -instname input
     for dataset, emotion, name in generate_files(base_dir):
         command = "SMILExtract -C " + config + " -I " + base_dir + dataset + "/" + emotion + "/" + name + ".wav -O " + feature_dir + dataset + "/" + emotion + "/" + name + ".arff -instname " + name

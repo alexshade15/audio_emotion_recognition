@@ -3,9 +3,10 @@ import csv
 import random
 import numpy as np
 from keras.models import Sequential
-from keras.layers import Dropout, Dense
+from keras.layers import Dropout, Dense, Flatten
 from sklearn.preprocessing import LabelBinarizer
-from tensorflow.keras.callbacks import TensorBoard
+from keras.callbacks import TensorBoard
+from keras.optimizers import Adam, SGD
 
 
 def get_labels(path):
@@ -20,14 +21,18 @@ def get_labels(path):
 
 
 def from_arff_to_feture(arff_file):
+    #print("\n\n\narff_file", arff_file)
     with open(arff_file, 'r') as f:
         arff = f.read()
+        #print("\n\n\narff", arff)
         header, body = arff.split("@data")
-        features = body.split(",")
-        features.pop(0)  # remove name
-        features.pop(0)  # remove frameIndex
-        features.pop(0)  # remove frameTime
-        features.pop(-1)
+        #print("\n\n\nbody", body.encode('utf-8'), "--")
+        try:
+          features = body.split(",")
+          features.pop(0)  # remove name
+          features.pop(-1)
+        except:
+          print("\n\n", arff_file, "\n\n")
     return features
 
 
@@ -42,17 +47,20 @@ def get_all_arff(path):
 
 
 def data_gen(feature_folder, list_feature_vectors, batch_size, mode="train"):
-    lbs = ["Angry", "Disgust"  "Fear", "Happy", "Neutral", "Sad", "Surprise"]
+    lbs = ["Angry", "Disgust", "Fear", "Happy", "Neutral", "Sad", "Surprise"]
     lb = LabelBinarizer()
-    lb.fit(lbs)
+    lb.fit_transform(np.array(lbs))
     c = 0
     if mode == "train":
         random.shuffle(list_feature_vectors)
     while True:
         labels = []
-        features = np.zeros((batch_size, 1582, 1)).astype('float')
+        features = np.zeros((batch_size, 1582)).astype('float')
         for i in range(c, c + batch_size):
-            features[i - c] = from_arff_to_feture(feature_folder + "/" + list_feature_vectors[i])
+            feature = from_arff_to_feture(feature_folder + "/" + list_feature_vectors[i])
+            # print(len(feature), list_feature_vectors[i])
+            feature = np.array(feature) #.reshape(1, 1582)
+            features[i - c] = feature
             labels.append(list_feature_vectors[i].split("/")[0])
         c += batch_size
         if c + batch_size - 1 > len(list_feature_vectors):
@@ -60,18 +68,22 @@ def data_gen(feature_folder, list_feature_vectors, batch_size, mode="train"):
             random.shuffle(list_feature_vectors)
             if mode == "eval":
                 break
+        #print("\n\nLABEL", labels)
         labels = lb.transform(np.array(labels))
+        #print("\n\nLABEL", labels)
         yield features, labels
 
 
-def train_model(train_path, val_path, batch_size, epochs):
+def train_model(train_path, val_path, batch_size, epochs, lr):
     model = Sequential()
-    model.add(Dense(128, input_shape=(batch_size, 1582, 1), activation='relu'))
+    model.add(Dense(32, input_shape=(1582, ), activation='relu'))
     model.add(Dropout(0.5))
     model.add(Dense(64, activation='relu'))
     model.add(Dropout(0.5))
     model.add(Dense(7, activation='softmax'))
-    model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
+
+    model.compile(optimizer=Adam(learning_rate=lr), loss='categorical_crossentropy', metrics=['accuracy'])
+    model.summary()
 
     train_files = get_all_arff(train_path)
     val_files = get_all_arff(val_path)
@@ -80,8 +92,18 @@ def train_model(train_path, val_path, batch_size, epochs):
     no_of_training_images = len(train_files)
     no_of_val_images = len(val_files)
 
-    tb_call_back = TensorBoard(log_dir="audio_logs", write_graph=True, write_images=True)
+    #tb_call_back = TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True)
     history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
-                                  validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
-                                  callbacks=[tb_call_back])
+                                  validation_data=val_gen, validation_steps=(no_of_val_images // batch_size))
+    #                              callbacks=[tb_call_back])
     # score = model.evaluate_generator(test_gen, no_of_test_images // batch_size)
+    print("Train Accuracy:\n", history.history['accuracy'])
+    print("Val Accuracy:\n", history.history['val_accuracy'])
+    print("\n\nTrain Loss:\n", history.history['loss'])
+    print("Val Loss:\n", history.history['val_loss'])
+
+batch_size = 16
+epochs = 50
+lr = 0.01
+print("epochs:", epochs, "batch_size:", batch_size, "lr:", lr)
+train_model("/user/vlongobardi/audio_feature/Train", "/user/vlongobardi/audio_feature/Val", batch_size, epochs, lr)
