@@ -58,13 +58,14 @@ def from_wav_to_clips():
     frame_size = 300
     frame_step = 150
     for file_path in generate_files(wav_dir):
-        cmd = "ffmpeg -y -i " + wav_dir + file_path + ".avi temp_output.wav"
+        cmd = "ffmpeg -y -i " + wav_dir + file_path + ".wav temp_output.wav"
         bash_output = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        # print("\n\n", bash_output.stderr.decode("utf-8"), "\n\n")
         duration = to_milliseconds(bash_output.stderr.decode("utf-8").split("Duration: ")[1].split(",")[0])
         i = 0
         d0 = frame_step
-        cmd = "ffmpeg -i " + wav_dir + file_path + ".avi -t " + to_t_stamp(frame_size) + \
-              "-ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i) + ".wav"
+        cmd = "ffmpeg -y -i " + wav_dir + file_path + ".wav -t " + to_t_stamp(frame_size) + \
+              " -ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i) + ".wav"
         # print("\n\n", cmd)
         subprocess.call(cmd, shell=True)
         # if duration == 480:
@@ -75,25 +76,26 @@ def from_wav_to_clips():
             #     d0 += frame_step
             #     break
             i += 1
-            cmd = "ffmpeg -ss " + to_t_stamp(d0) + " -i " + wav_dir + file_path + ".avi -t " + to_t_stamp(frame_size) \
+            cmd = "ffmpeg -y -ss " + to_t_stamp(d0) + " -i " + wav_dir + file_path + ".wav -t " + to_t_stamp(frame_size) \
                   + " -ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i) + ".wav"
             # print("\n\n", cmd)
             subprocess.call(cmd, shell=True)
             d0 += frame_step
         if d0 < duration:
-            cmd = "ffmpeg -ss " + to_t_stamp(duration - frame_size) + " -i " + wav_dir + file_path + ".avi -t " + \
-                  to_t_stamp(frame_size) + "-ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i + 1) \
+            cmd = "ffmpeg -y -ss " + to_t_stamp(duration - frame_size) + " -i " + wav_dir + file_path + ".wav -t " + \
+                  to_t_stamp(frame_size) + " -ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i + 1) \
                   + ".wav"
             # print("\n\n", cmd)
             subprocess.call(cmd, shell=True)
 
 
-def from_clips_to_feature(cfg_file):
+def from_clips_to_feature(cfg_file="emobase2010.conf"):
     base_dir = "/user/vlongobardi/temp_clips/"
-    feature_dir = "/user/vlongobardi/audio_feature_" + cfg_file + "/"
+    feature_dir = "/user/vlongobardi/audio_feature_" + cfg_file.split(".")[0] + "/"
     config_path = "/user/vlongobardi/opensmile-2.3.0/config/" + cfg_file
     # SMILExtract -C opensmile-2.3.0/config/emobase2010_2.conf -I test.wav -O output.arff -instname input
     for file_path in generate_files(base_dir):
         cmd = "SMILExtract -C " + config_path + " -I " + base_dir + file_path + ".wav -O " + feature_dir + file_path + \
               ".arff"  # -instname " + name
         subprocess.call(cmd, shell=True)
+        print("\n\n")

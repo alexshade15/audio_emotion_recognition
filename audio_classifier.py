@@ -1,3 +1,4 @@
+
 import os
 import csv
 import random
@@ -10,7 +11,7 @@ from keras.optimizers import Adam, SGD
 
 
 def get_feature_number(feature_name):
-    if feature_name == "audio_feature_IS09":
+    if feature_name == "audio_feature_IS09_emotion":
         return 384
     if feature_name == "audio_feature_emobase2010":
         return 1582
@@ -65,11 +66,17 @@ def data_gen(feature_folder, list_feature_vectors, batch_size, feature_number=15
         labels = []
         features = np.zeros((batch_size, feature_number)).astype('float')
         for i in range(c, c + batch_size):
-            feature = from_arff_to_feture(feature_folder + "/" + list_feature_vectors[i])
-            features[i - c] = np.array(feature)
+            try:
+                feature = from_arff_to_feture(feature_folder + "/" + list_feature_vectors[i])
+                features[i - c] = np.array(feature)
+            except:
+                print("\n\n\n", len(list_feature_vectors), i, c, batch_size)
+                print("\n\n\n\n\n", c, batch_size, len(list_feature_vectors), c + batch_size, "\n\n\n\n\n\n\n")
+                print(feature_folder + "/" + list_feature_vectors[i], "\n\n")
             labels.append(list_feature_vectors[i].split("/")[0])
         c += batch_size
-        if c + batch_size - 1 > len(list_feature_vectors):
+        # print("\n\n\n\n\n", c, batch_size, len(list_feature_vectors), c + batch_size, "\n\n\n\n\n\n\n")
+        if c + batch_size > len(list_feature_vectors):
             c = 0
             random.shuffle(list_feature_vectors)
             if mode == "eval":
@@ -105,15 +112,15 @@ def train_model(train_path, val_path, batch_size, epochs, learning_rate, feature
                                   validation_data=val_gen, validation_steps=(no_of_val_images // batch_size))
     #                              callbacks=[tb_call_back])
     # score = model.evaluate_generator(test_gen, no_of_test_images // batch_size)
-    print("Train Accuracy:\n", history.history['accuracy'])
-    print("Val Accuracy:\n", history.history['val_accuracy'])
-    print("\n\nTrain Loss:\n", history.history['loss'])
-    print("Val Loss:\n", history.history['val_loss'])
+    print("\n\nTrain Accuracy =", history.history['accuracy'])
+    print("\nVal Accuracy =", history.history['val_accuracy'])
+    print("\n\nTrain Loss =", history.history['loss'])
+    print("\nVal Loss =", history.history['val_loss'])
 
 
 bs = 16
 ep = 50
 lr = 0.01
-base_path = "/user/vlongobardi/audio_feature_IS09/"
+base_path = "/user/vlongobardi/audio_feature_IS09_emotion/"
 print("epochs:", ep, "batch_size:", bs, "lr:", lr)
 train_model(base_path + "Train", base_path + "Val", bs, ep, lr, get_feature_number(base_path.split("/")[-2]))
