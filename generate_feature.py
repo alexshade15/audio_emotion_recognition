@@ -34,7 +34,7 @@ def generate_files(base_dir):
 
 
 def get_avi_info():
-    base_dir = "~/AFEW/videos/"
+    base_dir = "/user/vlongobardi/AFEW/videos/"
     for dataset, emotion, name in generate_files(base_dir):
         command = "ffmpeg -i " + base_dir + dataset + "/" + emotion + "/" + name + ".avi"
         subprocess.call(command, shell=True)
@@ -42,8 +42,8 @@ def get_avi_info():
 
 
 def from_avi_to_wav():
-    avi_dir = "~/AFEW/videos/"
-    wav_dir = "~/temp_wav/"
+    avi_dir = "/user/vlongobardi/AFEW/videos/"
+    wav_dir = "/user/vlongobardi/temp_wav/"
     for file_path in generate_files(avi_dir):
         cmd = "ffmpeg -i " + avi_dir + file_path + ".avi -ab 128k -ac 2 -ar 48000 -vn " + wav_dir + file_path + ".wav"
         # print(name, "\n\n\n")
@@ -53,8 +53,8 @@ def from_avi_to_wav():
 # ffmpeg -y -i ~/AFEW/videos/Train/Angry/000046280.avi 2>&1 | grep Duration | awk '{print $2}' | tr -d ,
 # ffmpeg -ss 0.3 -i ~/AFEW/videos/Train/Angry/000046280.avi -t 0.3 -ab 128k -ac 2 -ar 48000 -vn 000046280_0.wav
 def from_wav_to_clips():
-    wav_dir = "~/temp_wav/"
-    clip_dir = "~/temp_clips/"
+    wav_dir = "/user/vlongobardi/temp_wav/"
+    clip_dir = "/user/vlongobardi/temp_clips/"
     frame_size = 300
     frame_step = 150
     for file_path in generate_files(wav_dir):
@@ -89,9 +89,9 @@ def from_wav_to_clips():
 
 
 def from_clips_to_feature(cfg_file):
-    base_dir = "~/temp_clips/"
-    feature_dir = "~/audio_feature_" + cfg_file + "/"
-    config_path = "~/opensmile-2.3.0/config/" + cfg_file
+    base_dir = "/user/vlongobardi/temp_clips/"
+    feature_dir = "/user/vlongobardi/audio_feature_" + cfg_file + "/"
+    config_path = "/user/vlongobardi/opensmile-2.3.0/config/" + cfg_file
     # SMILExtract -C opensmile-2.3.0/config/emobase2010_2.conf -I test.wav -O output.arff -instname input
     for file_path in generate_files(base_dir):
         cmd = "SMILExtract -C " + config_path + " -I " + base_dir + file_path + ".wav -O " + feature_dir + file_path + \
