@@ -127,3 +127,5 @@ dmypy.json
 *.xml
 *.wav
 ssh_k*
+*.hdf5
+*DS_Store
