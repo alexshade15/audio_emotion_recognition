@@ -129,3 +129,6 @@ dmypy.json
 ssh_k*
 *.hdf5
 *DS_Store
+inference_cb.py
+submit_train_lee_sharma.sh
+train_lee_sharma.py
