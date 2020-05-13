@@ -4,13 +4,13 @@ import cv2
 
 def preprocessing_no(img):
     return img
-def preprocessing_full(img):
+def preprocessing_full(img, impath):
     img = equalize_hist(img)
     img = img.astype(np.float32)
     img = linear_balance_illumination(img)
     
     if np.abs(np.min(img)-np.max(img)) < 1:
-        print("WARNING: Image is =%d" % np.min(img))
+        print("WARNING: Image is =%d" % np.min(img), "where:", impath)
         
     else:
         img = mean_std_normalize(img)

@@ -230,7 +230,7 @@ class DataGenerator(keras.utils.Sequence):
             frame = self.augmenter.after_cut(frame)
 
         if self.preprocessing == 'full':
-            frame = preprocessing_full(frame)
+            frame = preprocessing_full(frame, impath)
         elif self.preprocessing == 'imagenet':
             frame = preprocessing_imagenet(frame)
         elif self.preprocessing == 'vggface':
@@ -360,10 +360,8 @@ class DataGenerator(keras.utils.Sequence):
                 start_frame = list(self.splitted_videos_tuple[i][1].keys())[0]
                 if self.split_len > 1:
                     end_frame = list(self.splitted_videos_tuple[i][1].keys())[self.sequence_len - 1]
-
                 else:
-                    end_frame = list(self.splitted_videos_tuple[i][1].keys())[
-                        len(self.splitted_videos_tuple[i][1].keys()) - 1]
+                    end_frame = list(self.splitted_videos_tuple[i][1].keys())[len(self.splitted_videos_tuple[i][1].keys())-1]
                 # assert end_frame - start_frame == self.sequence_len-1
 
                 framerange = range(start_frame, end_frame + 1)
@@ -376,8 +374,8 @@ class DataGenerator(keras.utils.Sequence):
             Y.append(batch[i][1])
         X = np.array(X)
         Y = np.array(Y)
-        if X.shape[1] == 1:
-            X = np.squeeze(X, axis=1)
+        # if X.shape[1] == 1:
+        #     X = np.squeeze(X, axis=1)
 
         return X, Y
 
