@@ -388,7 +388,9 @@ class DataGenerator(keras.utils.Sequence):
         Y = []
         # if self.dataset == 'afew':
         #     Y = np.empty((self.batch_size, 7))
+        print("INDEX; BS:", index, self.batch_size)
         for i in range(index, index + self.batch_size):
+            print("I:", i)
             if self.random_windows:
                 i = i % len(self.videos)
                 video_key = self.video_keys_order[i]

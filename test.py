@@ -14,7 +14,7 @@ data_path = "/user/rpalladino/Dataset/AFEW/aligned/Val/Fear/000142325.csv"
 # data_path = "/user/rpalladino/Dataset/AFEW/aligned/Val/Fear/000142325_aligned/"
 # csv_path = "/user/rpalladino/Dataset/AFEW/aligned/Val/Fear/000142325.csv"
 
-batch_size = 16
+batch_size = 1
 n_seq_per_epoch = 24
 time_step = 16
 classes = ["Angry", "Disgust", "Fear", "Happy", "Neutral", "Sad", "Surprise"]
