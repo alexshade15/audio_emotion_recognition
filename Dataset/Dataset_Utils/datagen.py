@@ -1,11 +1,10 @@
 import glob
 import os
 import random
-import sys
 import cv2
 import keras
 import numpy as np
-from Dataset.Dataset_Utils.dataset_tools import cut, equalize_hist
+from Dataset.Dataset_Utils.dataset_tools import cut
 from Dataset.Dataset_Utils.preprocessing import preprocessing_full, preprocessing_imagenet, preprocessing_no, \
     preprocessing_vggface2
 from keras.utils import to_categorical
@@ -98,11 +97,6 @@ def loadAFEW(datadir, max_invalid, sequence_len):  # 12, 16
 
 
 def load_test_AFEW(datadir, max_invalid, sequence_len):  # 12, 16
-    # data_path = "/user/rpalladino/Dataset/AFEW/aligned/Val/<Emotion>/<ID>_aligned/"
-    # csv_path = "/user/rpalladino/Dataset/AFEW/aligned/Val/<Emotion>/<ID>.csv"
-    # label_folder =  /user/rpalladino/Dataset/AFEW/aligned/Val/Happy
-
-    # csv_path = "/user/rpalladino/Dataset/AFEW/aligned/Val/Fear/000142325.csv"
     csv_path = datadir
     videos = {}
     frames_info = []
@@ -110,15 +104,15 @@ def load_test_AFEW(datadir, max_invalid, sequence_len):  # 12, 16
     invalid = 0
     id_clip = os.path.basename(csv_path)[:-4]
     emotion = csv_path.split("/")[-2]
-    align_info = open(csv_path)
 
-    for i_ali in align_info:
-        i_ali = [x.strip() for x in i_ali.split(',')]
-        if not i_ali[0].isdigit():
-            continue
+    align_info = open(csv_path)
+    align_info.readline()
+
+    for row in align_info:
+        row = [x.strip() for x in row.split(',')]
         thisframe = {
-            'success': bool(int(i_ali[4])),
-            'confidence': float(i_ali[3]),
+            'success': bool(int(row[4])),
+            'confidence': float(row[3]),
             'annotation': emotion
         }
         frames_info.append(thisframe)
