@@ -11,8 +11,7 @@ model_path = "/user/vlongobardi/checkpoint_best.hdf5"
 data_path = "/user/rpalladino/Dataset/AFEW/aligned/Val/"
 
 batch_size = 16
-sequence_len = 16
-split_video_len = 16
+# split_video_len = 16
 n_seq_per_epoch = 24
 time_step = 16
 # classification = True

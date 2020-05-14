@@ -57,14 +57,17 @@ def loadAffWild(datadir, anndir):
     return videos
 
 
-def loadAFEW(datadir, max_invalid, sequence_len):
+def loadAFEW(datadir, max_invalid, sequence_len): #12, 16
     videos = {}
 
     removed_videos = 0
 
+    print("\n\n\nBASE FOLDER:", datadir)
     for label_folder in glob.glob(os.path.join(datadir, '*')):
+        print("NEXT LEVEL:", label_folder)
 
         csvs = glob.glob(os.path.join(label_folder, '*.csv'))
+        print("ANY CSVS FOUND?", csvs)
         for f in csvs:
             frames_info = []
             vname = os.path.basename(f)[:-4]
@@ -85,7 +88,7 @@ def loadAFEW(datadir, max_invalid, sequence_len):
                     'annotation': annotation
                 }
                 frames_info.append(thisframe)
-                if thisframe['success'] == False or thisframe['confidence'] < 0.2:
+                if not thisframe['success'] or thisframe['confidence'] < 0.2:
                     invalid += 1
                 else:
                     last_good_frame = thisframe
@@ -361,7 +364,8 @@ class DataGenerator(keras.utils.Sequence):
                 if self.split_len > 1:
                     end_frame = list(self.splitted_videos_tuple[i][1].keys())[self.sequence_len - 1]
                 else:
-                    end_frame = list(self.splitted_videos_tuple[i][1].keys())[len(self.splitted_videos_tuple[i][1].keys())-1]
+                    end_frame = list(self.splitted_videos_tuple[i][1].keys())[
+                        len(self.splitted_videos_tuple[i][1].keys()) - 1]
                 # assert end_frame - start_frame == self.sequence_len-1
 
                 framerange = range(start_frame, end_frame + 1)
