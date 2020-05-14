@@ -57,25 +57,17 @@ def loadAffWild(datadir, anndir):
     return videos
 
 
-def loadAFEW(datadir, max_invalid, sequence_len): #12, 16
+def loadAFEW(datadir, max_invalid, sequence_len):  # 12, 16
     videos = {}
-
     removed_videos = 0
-
-    print("\n\n\nBASE FOLDER:", datadir)
     for label_folder in glob.glob(os.path.join(datadir, '*')):
-        print("NEXT LEVEL:", label_folder)
-
         csvs = glob.glob(os.path.join(label_folder, '*.csv'))
-        print("ANY CSVS FOUND?", csvs)
         for f in csvs:
             frames_info = []
             vname = os.path.basename(f)[:-4]
             align_info = open(f)
-
             annotation = os.path.basename(label_folder)
             invalid = 0
-            last_good_frame = None
             count = 0
 
             for i_ali in align_info:
@@ -90,9 +82,6 @@ def loadAFEW(datadir, max_invalid, sequence_len): #12, 16
                 frames_info.append(thisframe)
                 if not thisframe['success'] or thisframe['confidence'] < 0.2:
                     invalid += 1
-                else:
-                    last_good_frame = thisframe
-
                 count += 1
 
             # if count < sequence_len:
@@ -103,6 +92,44 @@ def loadAFEW(datadir, max_invalid, sequence_len): #12, 16
             else:
                 print("removed: " + label_folder + " " + vname)
                 removed_videos += 1
+    print("Total removed: ", removed_videos)
+
+    return videos
+
+
+def load_test_AFEW(datadir, max_invalid, sequence_len):  # 12, 16
+    # data_path = "/user/rpalladino/Dataset/AFEW/aligned/Val/<Emotion>/<ID>_aligned/"
+    # csv_path = "/user/rpalladino/Dataset/AFEW/aligned/Val/<Emotion>/<ID>.csv"
+    # label_folder =  /user/rpalladino/Dataset/AFEW/aligned/Val/Happy
+
+    # csv_path = "/user/rpalladino/Dataset/AFEW/aligned/Val/Fear/000142325.csv"
+    csv_path = datadir
+    videos = {}
+    frames_info = []
+    removed_videos = 0
+    invalid = 0
+    id_clip = os.path.basename(csv_path)[:-4]
+    emotion = csv_path.split("/")[-2]
+    align_info = open(csv_path)
+
+    for i_ali in align_info:
+        i_ali = [x.strip() for x in i_ali.split(',')]
+        if not i_ali[0].isdigit():
+            continue
+        thisframe = {
+            'success': bool(int(i_ali[4])),
+            'confidence': float(i_ali[3]),
+            'annotation': emotion
+        }
+        frames_info.append(thisframe)
+        if not thisframe['success'] or thisframe['confidence'] < 0.2:
+            invalid += 1
+
+    if invalid < len(frames_info) - (sequence_len - max_invalid) and len(frames_info) >= sequence_len:
+        videos[id_clip] = frames_info
+    else:
+        print("removed: " + os.path.dirname(csv_path) + " " + id_clip)
+        removed_videos += 1
     print("Total removed: ", removed_videos)
 
     return videos
@@ -144,7 +171,8 @@ def loadRECOLA(datadir, anndir):
 
 class DataGenerator(keras.utils.Sequence):
     def __init__(self, datadir, anndir, batch_size, n_seq_per_epoch, augmenter, sequence_len=16, split_video_len=16,
-                 max_invalid=8, target_shape=(224, 224, 3), preprocessing='full', random_windows=False, dataset='afew'):
+                 max_invalid=8, target_shape=(224, 224, 3), preprocessing='full', random_windows=False, dataset='afew',
+                 test=False):
         self.datadir = datadir
         self.anndir = anndir
         self.target_shape = target_shape
@@ -155,6 +183,7 @@ class DataGenerator(keras.utils.Sequence):
         self.augmenter = augmenter
         self.preprocessing = preprocessing
         self.split_len = split_video_len
+        self.test = test
 
         if split_video_len != 1 and random_windows is True:
             assert self.n_seq_per_epoch % batch_size == 0
@@ -163,12 +192,14 @@ class DataGenerator(keras.utils.Sequence):
             self.dataset = 'affwild'
             self.videos = loadAffWild(datadir, anndir)
         elif dataset == 'afew':
-            self.videos = loadAFEW(datadir, self.max_invalid, self.sequence_len)
+            if self.test:
+                self.videos = load_test_AFEW(datadir, self.max_invalid, self.sequence_len)
+            else:
+                self.videos = loadAFEW(datadir, self.max_invalid, self.sequence_len)
             self.dataset = 'afew'
         elif dataset == 'recola':
             self.dataset = 'recola'
             self.videos = loadRECOLA(datadir, anndir)
-
         else:
             raise
 
@@ -177,7 +208,6 @@ class DataGenerator(keras.utils.Sequence):
 
         if not random_windows:
             splitted_videos_before_removing = self._split_videos()
-
             splitted_videos_tuple = []
 
             if self.split_len > 1:
@@ -217,8 +247,13 @@ class DataGenerator(keras.utils.Sequence):
         return counter
 
     def _read_frame(self, video_key, frame_num, label=''):
-        impath = os.path.join(self.datadir, label, video_key + '_aligned',
-                              "frame_det_00_%06d.%s" % (frame_num + 1, IMAGE_EXT))
+        if self.test:
+            impath = os.path.join(os.path.dirname(os.path.dirname(self.datadir)), label, video_key + '_aligned',
+                                  "frame_det_00_%06d.%s" % (frame_num + 1, IMAGE_EXT))
+        else:
+            impath = os.path.join(self.datadir, label, video_key + '_aligned', "frame_det_00_%06d.%s" % (frame_num + 1,
+                                                                                                         IMAGE_EXT))
+
         frame = cv2.imread(impath)
 
         if frame is None:
@@ -319,7 +354,7 @@ class DataGenerator(keras.utils.Sequence):
                     invalid[i] = 1
                 elif vinfo[f]['success'] == True and frame_read is None:
                     invalid[i] = 1
-                elif np.array_equal(frame_read, np.zeros((frame_read.shape))):
+                elif np.array_equal(frame_read, np.zeros(frame_read.shape)):
                     invalid[i] = 1
 
             # print(t,np.sum(invalid),video_key)
