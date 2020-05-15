@@ -26,8 +26,8 @@ def get_feature_number(feature_name):
 def from_arff_to_feture(arff_file):
     with open(arff_file, 'r') as f:
         arff = f.read()
-        header, body = arff.split("@data")
         try:
+            header, body = arff.split("@data")
             features = body.split(",")
             features.pop(0)
             features.pop(-1)
