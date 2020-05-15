@@ -30,7 +30,7 @@ class Inference:
 
     def __init__(self, model=None, partition='Val', baseline_pretrained_on='AFEW', custom_inference=False, time_step=16,
                  classification=True):
-        print('Init Inference')
+        # print('Init Inference')
         self.partition = partition
         self.model = model
         self.pretrain_data = baseline_pretrained_on
@@ -63,7 +63,7 @@ class Inference:
         return stats
 
     def predict_generator(self, gen=None, mode=''):
-        print('Evaluating ', str(len(gen)), ' batches')
+        # print('Evaluating ', str(len(gen)), ' batches')
         for i, batch in enumerate(tqdm(gen)):
             self.predict_on_batch(batch, mode)
 

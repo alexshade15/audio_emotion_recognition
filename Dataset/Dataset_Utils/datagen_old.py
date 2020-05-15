@@ -113,9 +113,9 @@ class DataGenerator(keras.utils.Sequence):
         if not random_windows:
 
             splitted_videos_before_removing = self._split_videos()
-            print("Num seq before removing: ",self.count_seq(splitted_videos_before_removing))
+            # print("Num seq before removing: ",self.count_seq(splitted_videos_before_removing))
             splitted_videos_after_removing = self._remove_invalid_sequences(splitted_videos_before_removing)
-            print("Num seq after removing: ",self.count_seq(splitted_videos_after_removing))
+            # print("Num seq after removing: ",self.count_seq(splitted_videos_after_removing))
             partition = '' #todo handle
             splitted_videos_tuple = []
             if sequence_len == 1:
@@ -186,8 +186,8 @@ class DataGenerator(keras.utils.Sequence):
         # Assign a neightboring not none frame to None frames
         not_none = next((f for f in frames if f is not None), None)
         if not_none is None:
-            print("all frames are none: ",video_key)
-            print(video_key,framerange)
+            # print("all frames are none: ",video_key)
+            # print(video_key,framerange)
             # All frames are None
             return None, labels
 
