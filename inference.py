@@ -322,8 +322,8 @@ class Inference:
         ccc_arousal_list = []
         ccc_valence_list = []
         true = np.array(true)
-        print(predicted.shape)
-        print(np.array(predicted[0]).shape)
+        # print(predicted.shape)
+        # print(np.array(predicted[0]).shape)
         # predicted = np.array(predicted)
         for i in range(len(true)):
             # valence

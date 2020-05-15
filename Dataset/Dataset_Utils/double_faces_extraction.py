@@ -19,7 +19,7 @@ def double_faces_extraction(double_face_video_path, detections, temp_dir_double_
     video_name = video_double[:-4]
     video_frames_extraction_folder = os.path.join(temp_dir_double_extraction,video_name)
 
-    print("Processing video")
+    # print("Processing video")
     analysis_step = True
     right_face = {'best_img': None, 'features': [], 'avg_feature': None, 'rois':[]}
     left_face = {'best_img': None, 'features': [], 'avg_feature': None, 'rois':[]}
@@ -35,7 +35,7 @@ def double_faces_extraction(double_face_video_path, detections, temp_dir_double_
     counter_for_analysis = 0
     counter_maximum_frame_analysis = 20
 
-    print("Processing: ", video_name)
+    # print("Processing: ", video_name)
     pbar = tqdm(total=len(detections))
     total = len(detections)
     previous_f = {}

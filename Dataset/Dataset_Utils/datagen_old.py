@@ -247,7 +247,7 @@ class DataGenerator(keras.utils.Sequence):
         if self.random_windows:
             return self.n_seq_per_epoch // self.batch_size
         else:
-            print(len(self.splitted_videos_tuple) // self.batch_size)
+            # print(len(self.splitted_videos_tuple) // self.batch_size)
             return len(self.splitted_videos_tuple) // self.batch_size
 
     def on_epoch_end(self):

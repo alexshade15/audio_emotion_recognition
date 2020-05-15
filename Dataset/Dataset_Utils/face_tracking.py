@@ -349,7 +349,7 @@ def face_landmarks_tracking_frames(frames, input_dir_frames, out_openface, align
             cv2.imshow("OPENFACE LANDMARK", aligned_face_open_landmark)
 
             cv2.waitKey(50)
-            print("ciao")
+            # print("ciao")
 
 
 def extract_frames(src, dest, asr, extract=False):

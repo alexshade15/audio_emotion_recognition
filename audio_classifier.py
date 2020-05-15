@@ -77,6 +77,9 @@ class AudioClassifier:
     def test_model(self, sample_path):
         sample = np.array(from_arff_to_feture(sample_path)).reshape(1, self.feature_number)
         ground_truth = sample_path.split("/")[-2]
+        print("\n\n\nSAMPLE_PATH, sample_sape", sample_path, sample.shape)
+        print("model_input shape", self.model.layers[0].input_shape)
+        print("summary:", self.model.summary)
         prediction = self.model.predict(sample)
         return self.lb.inverse_transform(prediction), ground_truth
 
@@ -127,7 +130,6 @@ class AudioClassifier:
             yield features, labels
 
     def train_model(self, train_path, val_path, batch_size, epochs, learning_rate, feature_number=1582):
-        print(feature_number, "\n\n")
         model = Sequential()
         model.add(Dense(16, input_shape=(feature_number,), activation='relu'))
         # model.add(Dropout(0.5))
