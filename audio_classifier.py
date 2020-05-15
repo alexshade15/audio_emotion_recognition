@@ -98,7 +98,7 @@ class AudioClassifier:
         ground_truths = []
         stats = []
         for arff in get_all_arff(val_path):
-            pred, ground_truth = self.test_model(arff)
+            pred, ground_truth = self.test_model(val_path + arff)
             predictions.append(pred)
             ground_truths.append(ground_truth)
 
