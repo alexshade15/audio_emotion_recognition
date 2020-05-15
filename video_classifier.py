@@ -28,7 +28,7 @@ class VideoClassifier:
 
         self.fc = FramesClassidier()
         self.ac = AudioClassifier(audio_model_path)
-        self.feature_name = "audio_feature_emobase2010"  # temporaneo
+        self.feature_name = "audio_feature_IS09_emotion"  # temporaneo
         self.classes = classes
         self.lb = LabelBinarizer()
         self.lb.fit_transform(np.array(classes))
@@ -51,7 +51,7 @@ class VideoClassifier:
             features = np.zeros((batch_size, 2*len(self.classes))).astype('float')
             for i in range(c, c + batch_size):
                 label_from_audio = self.ac.clip_classification(list_feature_vectors[i].split(".")[0]
-                                                               .replace("AFEW/aligned", "audio_feature_emobase2010"))
+                                                               .replace("AFEW/aligned", self.feature_name))
                 graund_truth, label_from_frame = self.fc.make_a_prediction(list_feature_vectors[i])
                 print("\n\n\nlabel_from_audio, label_from_frame, graund_truth: ", label_from_audio, label_from_frame, graund_truth)
                 features[i - c] = np.append(self.lb.transform(label_from_audio), self.lb.transform(label_from_frame))

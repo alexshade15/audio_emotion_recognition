@@ -65,25 +65,14 @@ class AudioClassifier:
             self.feature_number = get_feature_number(base_path.split("/")[-2])
             self.model = self.train_model(base_path + "Train", base_path + "Val", bs, ep, lr, self.feature_number)
 
-    def data_gen(self, feature_folder, list_feature_vectors, batch_size, feature_number=1582, mode="train"):
-        c = 0
-        if mode == "train":
-            random.shuffle(list_feature_vectors)
-        while True:
-            labels = []
-            features = np.zeros((batch_size, feature_number)).astype('float')
-            for i in range(c, c + batch_size):
-                feature = from_arff_to_feture(feature_folder + "/" + list_feature_vectors[i])
-                features[i - c] = np.array(feature)
-                labels.append(list_feature_vectors[i].split("/")[0])
-            c += batch_size
-            if c + batch_size > len(list_feature_vectors):
-                c = 0
-                random.shuffle(list_feature_vectors)
-                if mode == "eval":
-                    break
-            labels = self.lb.transform(np.array(labels))
-            yield features, labels
+    def clip_classification(self, path_clip_beginngin):
+        all_predictions = {}
+        for c in self.classes:
+            all_predictions[c] = 0
+        for feature_vector_path in glob.glob(path_clip_beginngin + "*"):
+            pred, ground_truth = self.test_model(feature_vector_path)
+            all_predictions[pred] += 1
+        return max(all_predictions.items(), key=operator.itemgetter(1))[0]
 
     def test_model(self, sample_path):
         sample = np.array(from_arff_to_feture(sample_path)).reshape(1, self.feature_number)
@@ -117,14 +106,25 @@ class AudioClassifier:
                 print(elem)
             print("\n\n")
 
-    def clip_classification(self, path_clip_beginngin):
-        all_predictions = {}
-        for c in self.classes:
-            all_predictions[c] = 0
-        for feature_vector_path in glob.glob(path_clip_beginngin + "*"):
-            pred, ground_truth = self.test_model(feature_vector_path)
-            all_predictions[pred] += 1
-        return max(all_predictions.items(), key=operator.itemgetter(1))[0]
+    def data_gen(self, feature_folder, list_feature_vectors, batch_size, feature_number=1582, mode="train"):
+        c = 0
+        if mode == "train":
+            random.shuffle(list_feature_vectors)
+        while True:
+            labels = []
+            features = np.zeros((batch_size, feature_number)).astype('float')
+            for i in range(c, c + batch_size):
+                feature = from_arff_to_feture(feature_folder + "/" + list_feature_vectors[i])
+                features[i - c] = np.array(feature)
+                labels.append(list_feature_vectors[i].split("/")[0])
+            c += batch_size
+            if c + batch_size > len(list_feature_vectors):
+                c = 0
+                random.shuffle(list_feature_vectors)
+                if mode == "eval":
+                    break
+            labels = self.lb.transform(np.array(labels))
+            yield features, labels
 
     def train_model(self, train_path, val_path, batch_size, epochs, learning_rate, feature_number=1582):
         print(feature_number, "\n\n")
@@ -159,7 +159,6 @@ class AudioClassifier:
 
         model.save("myAudioModel_" + history.history['val_accuracy'][-1] + ".h5")
         return model
-
 
 # import audio_classifier
 # ac = audio_classifier.AudioClassifier("myModel_17.h5")
