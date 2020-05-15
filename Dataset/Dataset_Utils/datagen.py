@@ -196,7 +196,7 @@ class DataGenerator(keras.utils.Sequence):
         else:
             raise
 
-        # print("video loaded: ", len(self.videos))
+        print("video loaded: ", len(self.videos))
         self.random_windows = random_windows
 
         if not random_windows:
@@ -204,10 +204,10 @@ class DataGenerator(keras.utils.Sequence):
             splitted_videos_tuple = []
 
             if self.split_len > 1:
-                # print("Num seq before removing: ", self.count_seq(splitted_videos_before_removing))
+                print("Num seq before removing: ", self.count_seq(splitted_videos_before_removing))
 
                 splitted_videos_after_removing = self._remove_invalid_sequences(splitted_videos_before_removing)
-                # print("Num seq after removing: ", self.count_seq(splitted_videos_after_removing))
+                print("Num seq after removing: ", self.count_seq(splitted_videos_after_removing))
                 if sequence_len == 1:
                     for k, v in splitted_videos_after_removing.items():
                         assert len(v) >= n_seq_per_epoch
@@ -229,7 +229,7 @@ class DataGenerator(keras.utils.Sequence):
                     splitted_videos_tuple.append((k, video_dict))
             self.splitted_videos_tuple = splitted_videos_tuple
 
-            # print("number of sequences final: ", len(self.splitted_videos_tuple))
+            print("number of sequences final: ", len(self.splitted_videos_tuple))
 
         self.on_epoch_end()
 
@@ -356,12 +356,12 @@ class DataGenerator(keras.utils.Sequence):
 
     def __len__(self):
         if self.random_windows:
-            # print("number of batches (random): ", self.n_seq_per_epoch // self.batch_size)
+            print("number of batches (random): ", self.n_seq_per_epoch // self.batch_size)
 
             return self.n_seq_per_epoch // self.batch_size
-        # else:
-        #     print('batch size: ', self.batch_size)
-        #     print("number of batches (not random): ", len(self.splitted_videos_tuple) // self.batch_size)
+        else:
+            print('batch size: ', self.batch_size)
+            print("number of batches (not random): ", len(self.splitted_videos_tuple) // self.batch_size)
 
             return len(self.splitted_videos_tuple) // self.batch_size
 

@@ -80,7 +80,7 @@ class AudioClassifier:
         # print("\n\n\nSAMPLE_PATH, sample_sape", sample_path, sample.shape)
         # print("model_input shape", self.model.layers[0].input_shape)
         prediction = self.model.predict(sample)
-        return self.lb.inverse_transform(prediction)[0], ground_truth
+        return self.lb.inverse_transform(prediction), ground_truth
 
     def print_confusion_matrix(self, val_path):
         predictions = []
