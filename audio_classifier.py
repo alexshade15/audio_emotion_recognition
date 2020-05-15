@@ -1,4 +1,3 @@
-
 import os
 import csv
 import random
@@ -8,6 +7,7 @@ from keras.layers import Dropout, Dense
 from sklearn.preprocessing import LabelBinarizer
 from keras.callbacks import TensorBoard
 from keras.optimizers import Adam, SGD
+from keras.models import load_model
 
 
 def get_feature_number(feature_name):
@@ -87,6 +87,15 @@ def data_gen(feature_folder, list_feature_vectors, batch_size, feature_number=15
         yield features, labels
 
 
+def test_model(model_name, val_path, batch_size, feature_number):
+    model = load_model(model_name)
+    val_files = get_all_arff(val_path)
+    test_gen = data_gen(val_path, val_files, batch_size, feature_number, mode="eval")
+    num_sample = len(val_files)
+    predictions_test = model.predict_generator(test_gen, num_sample, verbose=1)
+    print(predictions_test)
+
+
 def train_model(train_path, val_path, batch_size, epochs, learning_rate, feature_number=1582):
     print(feature_number, "\n\n")
     model = Sequential()
@@ -116,6 +125,8 @@ def train_model(train_path, val_path, batch_size, epochs, learning_rate, feature
     print("\nVal Accuracy =", history.history['val_accuracy'])
     print("\n\nTrain Loss =", history.history['loss'])
     print("\nVal Loss =", history.history['val_loss'])
+
+    model.save("myModel_17.h5")
 
 
 bs = 16
