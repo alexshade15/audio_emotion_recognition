@@ -50,7 +50,7 @@ class VideoClassifier:
             labels = []
             features = np.zeros((batch_size, 2*len(self.classes))).astype('float')
             for i in range(c, c + batch_size):
-                label_from_audio = self.ac.clip_classification(list_feature_vectors.split(".")[0])
+                label_from_audio = self.ac.clip_classification(list_feature_vectors[i].split(".")[0])
                 graund_truth, label_from_frame = self.fc.make_a_prediction(list_feature_vectors[i])
                 print("\n\n\nlabel_from_audio, label_from_frame, graund_truth: ", label_from_audio, label_from_frame, graund_truth)
                 features[i - c] = np.append(self.lb.transform(label_from_audio), self.lb.transform(label_from_frame))
