@@ -14,7 +14,6 @@ from tqdm import tqdm
 # from keras.layers import Dense, TimeDistributed
 import itertools
 import matplotlib.pyplot as plt
-import tensorflow as tf
 from scipy.stats import pearsonr
 import math
 
@@ -418,20 +417,20 @@ def fig2data(fig):
     return buf
 
 
-def make_image(tensor):
-    """
-    Convert an numpy representation image to Image protobuf.
-    Copied from https://github.com/lanpa/tensorboard-pytorch/
-    """
-    from PIL import Image
-    height, width, channel = tensor.shape
-    image = Image.fromarray(tensor)
-    import io
-    output = io.BytesIO()
-    image.save(output, format='PNG')
-    image_string = output.getvalue()
-    output.close()
-    return tf.Summary.Image(height=height, width=width, colorspace=channel, encoded_image_string=image_string)
+# def make_image(tensor):
+#     """
+#     Convert an numpy representation image to Image protobuf.
+#     Copied from https://github.com/lanpa/tensorboard-pytorch/
+#     """
+#     from PIL import Image
+#     height, width, channel = tensor.shape
+#     image = Image.fromarray(tensor)
+#     import io
+#     output = io.BytesIO()
+#     image.save(output, format='PNG')
+#     image_string = output.getvalue()
+#     output.close()
+#     return tf.Summary.Image(height=height, width=width, colorspace=channel, encoded_image_string=image_string)
 
 
 def stats_to_csv(stats_path='', only_cnn=False):
