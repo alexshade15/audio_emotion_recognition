@@ -1,6 +1,8 @@
 import os
 import sys
+
 from keras.layers import Input
+
 from Dataset.Dataset_Utils.dataset_tools import print_cm
 from Dataset.Dataset_Utils.datagen import DataGenerator
 from Dataset.Dataset_Utils.augmenter import NoAug
@@ -13,7 +15,7 @@ def _clear_past_predictions(inference):
     inference.predicted.clear()
 
 
-class VideoOracle:
+class FramesClassidier:
     def __init__(self, weights_path="/user/vlongobardi/checkpoint_best.hdf5", time_step=50):
         # load model
         self.model = SharmaNet(Input(shape=(time_step, 224, 224, 3)), classification=True, weights='afew')
@@ -23,5 +25,5 @@ class VideoOracle:
         test_gen = DataGenerator(path, '', 1, 31, NoAug(), split_video_len=1, max_invalid=12, test=True)
         inference = Inference(model=self.model, custom_inference=True, time_step=50)
         _clear_past_predictions(inference)
-        prediction = inference.predict_generator(test_gen, mode="overlap")
-        return prediction
+        graund_truth, prediction = inference.predict_generator(test_gen, mode="overlap")
+        return graund_truth, prediction

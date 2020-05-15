@@ -1,14 +1,17 @@
 import os
+import glob
 import random
 import operator
 import numpy as np
-from keras.models import Sequential
+
+from keras.models import Sequential, load_model
 from keras.layers import Dropout, Dense
+from keras.optimizers import Adam, SGD
+from keras.callbacks import TensorBoard
+
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
-from keras.callbacks import TensorBoard
-from keras.optimizers import Adam, SGD
-from keras.models import load_model
+
 from Dataset.Dataset_Utils.dataset_tools import print_cm
 
 
@@ -43,13 +46,6 @@ def get_all_arff(path):
     return arffs
 
 
-def get_input(feature_path):
-    feature = np.array(from_arff_to_feture(feature_path))
-    ground_truth = feature_path.split("/")[-2]
-    # encoded_label = lb.transform(np.array([path.split("/")[-2]]))
-    return feature, ground_truth
-
-
 class AudioClassifier:
 
     def __init__(self, model_path=None, classes=["Angry", "Disgust", "Fear", "Happy", "Neutral", "Sad", "Surprise"],
@@ -60,13 +56,14 @@ class AudioClassifier:
         self.lb.fit_transform(np.array(classes))
         if model_path is not None:
             self.model = load_model(model_path)
+            self.feature_number = 384  # model_path.split("_")[0] da verificare
         else:
             bs = 16
             ep = 50
             lr = 0.01
             print("epochs:", ep, "batch_size:", bs, "lr:", lr)
-            feature_number = get_feature_number(base_path.split("/")[-2])
-            self.model = self.train_model(base_path + "Train", base_path + "Val", bs, ep, lr, feature_number)
+            self.feature_number = get_feature_number(base_path.split("/")[-2])
+            self.model = self.train_model(base_path + "Train", base_path + "Val", bs, ep, lr, self.feature_number)
 
     def data_gen(self, feature_folder, list_feature_vectors, batch_size, feature_number=1582, mode="train"):
         c = 0
@@ -89,7 +86,8 @@ class AudioClassifier:
             yield features, labels
 
     def test_model(self, sample_path):
-        sample, ground_truth = get_input(sample_path)
+        sample = np.array(from_arff_to_feture(sample_path)).reshape(1, self.feature_number)
+        ground_truth = sample_path.split("/")[-2]
         prediction = self.model.predict(sample)
         return self.lb.inverse_transform(prediction), ground_truth
 
@@ -119,12 +117,12 @@ class AudioClassifier:
                 print(elem)
             print("\n\n")
 
-    def clip_classification(self, folder_clip):
+    def clip_classification(self, path_clip_beginngin):
         all_predictions = {}
         for c in self.classes:
             all_predictions[c] = 0
-        for feature_vectors in os.listdir(folder_clip):
-            pred, ground_truth = self.test_model(folder_clip + "/" + feature_vectors)
+        for feature_vector_path in glob.glob(path_clip_beginngin + "*"):
+            pred, ground_truth = self.test_model(feature_vector_path)
             all_predictions[pred] += 1
         return max(all_predictions.items(), key=operator.itemgetter(1))[0]
 
@@ -159,5 +157,10 @@ class AudioClassifier:
         print("\n\nTrain Loss =", history.history['loss'])
         print("\nVal Loss =", history.history['val_loss'])
 
-        model.save("myModel_17.h5")
+        model.save("myAudioModel_" + history.history['val_accuracy'][-1] + ".h5")
         return model
+
+
+# import audio_classifier
+# ac = audio_classifier.AudioClassifier("myModel_17.h5")
+# ac.print_confusion_matrix("/user/vlongobardi/audio_feature_IS09_emotion/Val/")

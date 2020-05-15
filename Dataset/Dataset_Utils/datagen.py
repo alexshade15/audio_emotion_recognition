@@ -96,8 +96,7 @@ def loadAFEW(datadir, max_invalid, sequence_len):  # 12, 16
     return videos
 
 
-def load_test_AFEW(datadir, max_invalid, sequence_len):  # 12, 16
-    csv_path = datadir
+def load_test_AFEW(csv_path, max_invalid, sequence_len):  # 12, 16
     videos = {}
     frames_info = []
     removed_videos = 0
