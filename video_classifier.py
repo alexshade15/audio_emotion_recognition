@@ -48,12 +48,13 @@ class VideoClassifier:
             random.shuffle(list_feature_vectors)
         while True:
             labels = []
-            features = np.zeros((batch_size, 2*len(self.classes))).astype('float')
+            features = np.zeros((batch_size, 2 * len(self.classes))).astype('float')
             for i in range(c, c + batch_size):
                 label_from_audio = self.ac.clip_classification(list_feature_vectors[i].split(".")[0]
                                                                .replace("AFEW/aligned", self.feature_name))
                 graund_truth, label_from_frame = self.fc.make_a_prediction(list_feature_vectors[i])
-                print("\n\n\nlabel_from_audio, label_from_frame, graund_truth: ", label_from_audio, label_from_frame, graund_truth)
+                print("\n\n\nlabel_from_audio, label_from_frame, graund_truth: ", label_from_audio, label_from_frame,
+                      graund_truth)
                 features[i - c] = np.append(self.lb.transform(label_from_audio), self.lb.transform(label_from_frame))
                 labels.append(graund_truth)
             c += batch_size
@@ -94,3 +95,14 @@ class VideoClassifier:
 
         model.save("myVideoModel_" + history.history['val_accuracy'][-1] + ".h5")
         return model
+
+    def generate_audio_preds(self, basepath="/user/vlongobardi/AFEW/aligned/"):
+        train_files = glob.glob(basepath + "Train" + "/*/*csv")
+        val_files = glob.glob(basepath + "Val" + "/*/*csv")
+        audio_predictions = []
+        c = 0
+        for files in [train_files, val_files]:
+            for csv in files:
+                label_from_audio = self.ac.clip_classification(csv.split(".")[0].replace("AFEW/aligned", self.feature_name))
+                graund_truth, label_from_frame = self.fc.make_a_prediction(csv)
+                print("\n", label_from_audio, label_from_frame, graund_truth)

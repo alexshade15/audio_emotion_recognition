@@ -77,9 +77,8 @@ class AudioClassifier:
     def test_model(self, sample_path):
         sample = np.array(from_arff_to_feture(sample_path)).reshape(1, self.feature_number)
         ground_truth = sample_path.split("/")[-2]
-        print("\n\n\nSAMPLE_PATH, sample_sape", sample_path, sample.shape)
-        print("model_input shape", self.model.layers[0].input_shape)
-        print("summary:", self.model.summary)
+        # print("\n\n\nSAMPLE_PATH, sample_sape", sample_path, sample.shape)
+        # print("model_input shape", self.model.layers[0].input_shape)
         prediction = self.model.predict(sample)
         return self.lb.inverse_transform(prediction), ground_truth
 
