@@ -67,15 +67,18 @@ class AudioClassifier:
             for index, model in enumerate([model1, model2, model3, model4]):
                 for opt in opts:
                     for lr in lrs:
-                        print("\n\n\n######################################"
-                              "\nepochs:", ep, "batch_size:", bs,
-                              "\nmodel:", "Model" + str(index + 1),
-                              "\nlr:", lr, "opt:", opt)
-                        self.model_number = index + 1
-                        self.feature_number = get_feature_number(base_path.split("/")[-2])
-                        self.model = self.train_model(base_path + "Train", base_path + "Val",
-                                                      bs, ep, self.feature_number,
-                                                      model, lr, opt)
+                        for iteration in range(10):
+                            print("\n\n\n##############################################################################"
+                                  "\n############################### ITERATION " + str(iteration) + "################" +
+                                  "########################\n########################################################" +
+                                  "######################\nepochs:", ep, "batch_size:", bs,
+                                  "\nmodel:", "Model" + str(index + 1),
+                                  "\nlr:", lr, "opt:", opt)
+                            self.model_number = index + 1
+                            self.feature_number = get_feature_number(base_path.split("/")[-2])
+                            self.model = self.train_model(base_path + "Train", base_path + "Val",
+                                                          bs, ep, self.feature_number,
+                                                          model(self.feature_number), lr, opt)
 
     def clip_classification(self, path_clip_beginngin):
         all_predictions = {}
@@ -153,7 +156,7 @@ class AudioClassifier:
             model.add(Dense(7, activation='softmax'))
             optimizer = Adam(learning_rate=learning_rate)
         else:
-            model = mymodel[0]
+            model = mymodel
             if myopt == "Adam":
                 optimizer = Adam(lr=learning_rate)
             else:
@@ -179,7 +182,7 @@ class AudioClassifier:
         print("\n\nTrain Loss =", history.history['loss'])
         print("\nVal Loss =", history.history['val_loss'])
 
-        model_name = "audioModel_" + history.history['val_accuracy'][-1] + \
+        model_name = "audioModel_" + str(history.history['val_accuracy'][-1]) + \
                      "_epoch" + str(epochs) + "_lr" + str(learning_rate) + "_Opt", myopt + \
                      "_Model" + str(self.model_number) + "_Feature" + str(self.feature_number) + ".h5"
         model.save(model_name)
