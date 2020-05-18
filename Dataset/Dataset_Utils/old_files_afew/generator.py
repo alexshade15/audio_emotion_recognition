@@ -1,8 +1,10 @@
-import sys,os
+import sys, os
+
 sys.path.append("/data/s4179447/")
 import cv2
 from six.moves import cPickle as pickle
-from Dataset.Dataset_Utils.old_files_afew.dataset_tools import _read_dataset, findRelevantFace, equalize_hist, linear_balance_illumination, \
+from Dataset.Dataset_Utils.old_files_afew.dataset_tools import _read_dataset, findRelevantFace, equalize_hist, \
+    linear_balance_illumination, \
     mean_std_normalize, random_change_roi, random_image_rotate, random_image_skew, random_change_image, cut, roi_center, \
     show_frame, split_video, cut_centered, _random_normal_crop, cut_centered
 from Dataset.Dataset_Utils.facedetect_vggface2.face_detector import FaceDetector
@@ -15,13 +17,15 @@ from math import ceil
 from sklearn.utils import shuffle
 from sklearn.preprocessing import LabelEncoder
 from keras.utils import to_categorical
-#import Models.Config.SEResNet50_config as config
+# import Models.Config.SEResNet50_config as config
 import random
 from numpy import argmax
 import time
 import abc
-#import dlib
-#from Dataset.Dataset_Utils.facedetect_vggface2.face_aligner import FaceAligner
+
+
+# import dlib
+# from Dataset.Dataset_Utils.facedetect_vggface2.face_aligner import FaceAligner
 
 
 class DataGenerator(keras.utils.Sequence):
@@ -47,7 +51,7 @@ class DataGenerator(keras.utils.Sequence):
     def __getitem__(self, index):
         self.mutex.acquire()
         if self.cur_index >= len(self.data):
-            #print("Reset")
+            # print("Reset")
             self.cur_index = 0
         i = self.cur_index
         self.cur_index += self.batch_size
@@ -89,9 +93,9 @@ class DataGenerator(keras.utils.Sequence):
         img = equalize_hist(img)
         img = img.astype(np.float32)
         img = linear_balance_illumination(img)
-        if np.abs(np.min(img) - np.max(img)) < 1:
-            #print("WARNING: Image is =%d" % np.min(img))
-        else:
+        if np.abs(np.min(img) - np.max(img)) >= 1:
+        # print("WARNING: Image is =%d" % np.min(img))
+        # else:
             img = mean_std_normalize(img)
         if self.target_shape[2] == 3 and (len(img.shape) < 3 or img.shape[2] < 3):
             img = np.repeat(np.squeeze(img)[:, :, None], 3, axis=2)

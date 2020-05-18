@@ -1,15 +1,14 @@
 from mtcnn import MTCNN
 
 
-
 class MTCNN_detector():
     net = None
 
-    def __init__(self, steps_threshold = [0.6, 0.7, 0.7]):
-        #print("FaceDetector MTCNN -> init")
+    def __init__(self, steps_threshold=[0.6, 0.7, 0.7]):
+        # print("FaceDetector MTCNN -> init")
         self.net = MTCNN(steps_threshold=steps_threshold)
         self.min_confidence = steps_threshold
-        #print("FaceDetector MTCNN -> init ok")
+        # print("FaceDetector MTCNN -> init ok")
 
     def detect(self, image):
 
@@ -37,11 +36,9 @@ class MTCNN_detector():
                     pass
         return faces_result
 
-    def get_landmarks(self,detections):
+    def get_landmarks(self, detections):
 
         return detections[0]['keypoints'].values()
 
-
-
-    def __del__(self):
-        #print("FaceDetector -> bye")
+    # def __del__(self):
+    # print("FaceDetector -> bye")

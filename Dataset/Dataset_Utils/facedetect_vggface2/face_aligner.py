@@ -17,11 +17,11 @@ class FaceAligner:
     predictor = None
 
     def __init__(self):
-        #print("FaceAligner -> init")
+        # print("FaceAligner -> init")
         self.predictor = dlib.shape_predictor(PATH)
-        #print("FaceAligner -> init ok")
+        # print("FaceAligner -> init ok")
 
-    def align(self,image,roi):
+    def align(self, image, roi):
         landmarks = self.get_landmarks(image, roi)
         desiredFaceWidth = 256
         desiredFaceHeight = 256
@@ -31,8 +31,8 @@ class FaceAligner:
         # desired x-coordinate of the left eye
         desiredRightEyeX = 1.0 - desiredLeftEye[0]
 
-        leftEyePts = np.array([landmarks[0],landmarks[1]])
-        rightEyePts = np.array([landmarks[2],landmarks[3]])
+        leftEyePts = np.array([landmarks[0], landmarks[1]])
+        rightEyePts = np.array([landmarks[2], landmarks[3]])
         leftEyeCenter = leftEyePts.mean(axis=0).astype("int")
         leftEyeCenter = tuple(leftEyeCenter)
         rightEyeCenter = rightEyePts.mean(axis=0).astype("int")
@@ -42,7 +42,6 @@ class FaceAligner:
         dY = rightEyeCenter[1] - leftEyeCenter[1]
         dX = rightEyeCenter[0] - leftEyeCenter[0]
         angle = np.degrees(np.arctan2(dY, dX))
-
 
         # determine the scale of the new resulting image by taking
         # the ratio of the distance between eyes in the *current*
@@ -65,21 +64,22 @@ class FaceAligner:
         M[1, 2] += (tY - eyesCenter[1])
 
         (w, h) = (desiredFaceWidth, desiredFaceHeight)
-        output = cv2.warpAffine(image, M, (w, h),flags=cv2.INTER_CUBIC)
+        output = cv2.warpAffine(image, M, (w, h), flags=cv2.INTER_CUBIC)
 
         return output
 
     def get_landmarks(self, image, box):
-        box = dlib.rectangle(box[0], box[1], box[0]+box[2], box[1]+box[3])
+        box = dlib.rectangle(box[0], box[1], box[0] + box[2], box[1] + box[3])
         shape = self.predictor(image, box)
         arr = []
         for i in range(64):
             arr.append(_get_part(shape, i))
-        return [_get_part(shape,36),_get_part(shape,39),_get_part(shape,42), _get_part(shape,45), _get_part(shape,33), _get_part(shape,66)]
+        return [_get_part(shape, 36), _get_part(shape, 39), _get_part(shape, 42), _get_part(shape, 45),
+                _get_part(shape, 33), _get_part(shape, 66)]
         # return [_get_part(shape,36), _get_part(shape,45), _get_part(shape,33), _get_part(shape,66)]
 
-    def get_shape_detections(self,image,box):
+    def get_shape_detections(self, image, box):
         return self.predictor(image, box)
-        
-    def __del__(self):
-        #print("FaceAligner -> bye")
+
+    # def __del__(self):
+    # print("FaceAligner -> bye")

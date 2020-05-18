@@ -13,6 +13,7 @@ from sklearn.preprocessing import LabelBinarizer
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
 
 from Dataset.Dataset_Utils.dataset_tools import print_cm
+from test_models_for_audio import model1, model2, model3, model4
 
 
 def get_feature_number(feature_name):
@@ -56,14 +57,25 @@ class AudioClassifier:
         self.lb.fit_transform(np.array(classes))
         if model_path is not None:
             self.model = load_model(model_path)
-            self.feature_number = 384  # model_path.split("_")[0] da verificare
+            self.feature_number = int(model_path.split("_Feature")[-1].split(".")[0])
         else:
+            # fine tuning
             bs = 16
             ep = 50
-            lr = 0.01
-            #print("epochs:", ep, "batch_size:", bs, "lr:", lr)
-            self.feature_number = get_feature_number(base_path.split("/")[-2])
-            self.model = self.train_model(base_path + "Train", base_path + "Val", bs, ep, lr, self.feature_number)
+            opts = ["Adam", "SGD"]
+            lrs = [0.1, 0.01, 0.001]
+            for index, model in enumerate([model1, model2, model3, model4]):
+                for opt in opts:
+                    for lr in lrs:
+                        print("\n\n\n######################################"
+                              "\nepochs:", ep, "batch_size:", bs,
+                              "\nmodel:", "Model" + str(index + 1),
+                              "\nlr:", lr, "opt:", opt)
+                        self.model_number = index + 1
+                        self.feature_number = get_feature_number(base_path.split("/")[-2])
+                        self.model = self.train_model(base_path + "Train", base_path + "Val",
+                                                      bs, ep, self.feature_number,
+                                                      model, lr, opt)
 
     def clip_classification(self, path_clip_beginngin):
         all_predictions = {}
@@ -129,17 +141,25 @@ class AudioClassifier:
             labels = self.lb.transform(np.array(labels))
             yield features, labels
 
-    def train_model(self, train_path, val_path, batch_size, epochs, learning_rate, feature_number=1582):
-        model = Sequential()
-        model.add(Dense(16, input_shape=(feature_number,), activation='relu'))
-        # model.add(Dropout(0.5))
-        model.add(Dense(32, activation='relu'))
-        model.add(Dense(64, activation='relu'))
-        # model.add(Dropout(0.5))
-        model.add(Dense(7, activation='softmax'))
+    def train_model(self, train_path, val_path, batch_size, epochs, feature_number=1582,
+                    mymodel=None, learning_rate=0.1, myopt="Adam"):
+        if mymodel is None:
+            model = Sequential()
+            model.add(Dense(16, input_shape=(feature_number,), activation='relu'))
+            # model.add(Dropout(0.5))
+            model.add(Dense(32, activation='relu'))
+            model.add(Dense(64, activation='relu'))
+            # model.add(Dropout(0.5))
+            model.add(Dense(7, activation='softmax'))
+            optimizer = Adam(learning_rate=learning_rate)
+        else:
+            model = mymodel[0]
+            if myopt == "Adam":
+                optimizer = Adam(lr=learning_rate)
+            else:
+                optimizer = SGD(lr=learning_rate)
 
-        model.compile(optimizer=Adam(learning_rate=learning_rate), loss='categorical_crossentropy',
-                      metrics=['accuracy'])
+        model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
         model.summary()
 
         train_files = get_all_arff(train_path)
@@ -159,9 +179,13 @@ class AudioClassifier:
         print("\n\nTrain Loss =", history.history['loss'])
         print("\nVal Loss =", history.history['val_loss'])
 
-        model.save("myAudioModel_" + history.history['val_accuracy'][-1] + ".h5")
+        model_name = "audioModel_" + history.history['val_accuracy'][-1] + \
+                     "_epoch" + str(epochs) + "_lr" + str(learning_rate) + "_Opt", myopt + \
+                     "_Model" + str(self.model_number) + "_Feature" + str(self.feature_number) + ".h5"
+        model.save(model_name)
+        print("\n\nModels saved as:", model_name)
+
         return model
 
-# import audio_classifier
-# ac = audio_classifier.AudioClassifier("myModel_17.h5")
-# ac.#print_confusion_matrix("/user/vlongobardi/audio_feature_IS09_emotion/Val/")
+
+ac = AudioClassifier()

@@ -17,12 +17,12 @@ def double_faces_extraction(double_face_video_path, detections, temp_dir_double_
     cv2video = cv2.VideoCapture(double_face_video_path)
     video_double = os.path.basename(double_face_video_path)
     video_name = video_double[:-4]
-    video_frames_extraction_folder = os.path.join(temp_dir_double_extraction,video_name)
+    video_frames_extraction_folder = os.path.join(temp_dir_double_extraction, video_name)
 
     # #print("Processing video")
     analysis_step = True
-    right_face = {'best_img': None, 'features': [], 'avg_feature': None, 'rois':[]}
-    left_face = {'best_img': None, 'features': [], 'avg_feature': None, 'rois':[]}
+    right_face = {'best_img': None, 'features': [], 'avg_feature': None, 'rois': []}
+    left_face = {'best_img': None, 'features': [], 'avg_feature': None, 'rois': []}
 
     current_annotation = 'right'
     video_frames_extraction_folder_annotation_left = video_frames_extraction_folder + "_left"
@@ -84,7 +84,7 @@ def double_faces_extraction(double_face_video_path, detections, temp_dir_double_
 
 
                 elif len(faces) == 1:
-                    #print("only one face")
+                    # print("only one face")
                     checked_similarity, pred = check_face_similarity(face_model, faces[0],
                                                                      (left_face, right_face))
                     if (checked_similarity == 0 and current_annotation == 'left') or (
@@ -99,8 +99,7 @@ def double_faces_extraction(double_face_video_path, detections, temp_dir_double_
 
                 # detection fails --> return map_if_error error
                 else:
-                    #print("detection problem: ", frame_counter)
-
+                    # print("detection problem: ", frame_counter)
                     f = None
                 if (f is not None) and (f['img'].size != 0):
 
@@ -113,14 +112,12 @@ def double_faces_extraction(double_face_video_path, detections, temp_dir_double_
                     cv2.imwrite(
                         video_frames_extraction_folder + "_" + current_annotation + "/frame-{:06}.png".format(
                             frame_counter), img)
-
-
                 else:
                     if previous_f['roi'] is None:
 
-                        roi_prov = (100,100,100,100)
+                        roi_prov = (100, 100, 100, 100)
                         img_recover = cut(frame, roi_prov)
-                        detections_final[frame_counter] = [{'roi':roi_prov}]
+                        detections_final[frame_counter] = [{'roi': roi_prov}]
 
                     else:
                         img_recover = cut(frame, previous_f['roi'])
@@ -129,11 +126,9 @@ def double_faces_extraction(double_face_video_path, detections, temp_dir_double_
                     cv2.imwrite(
                         video_frames_extraction_folder + "_" + current_annotation + "/frame-{:06}.png".format(
                             frame_counter), img_recover)
-
-
-        else:
-            if not analysis_step:
-                #print("ret False")
+        # else:
+        #     if not analysis_step:
+        #         print("ret False")
 
                 # in this case just append a None object (interpolation to do after this stage), cv2 video fails
 
@@ -170,8 +165,6 @@ def double_faces_extraction(double_face_video_path, detections, temp_dir_double_
     return list_det_final
 
 
-
-
 def findFaceOnSide(model, faces, faces_left_right, right, width, previous_roi):
     candidates_faces = []
     face_to_compare = None
@@ -197,10 +190,10 @@ def findFaceOnSide(model, faces, faces_left_right, right, width, previous_roi):
             x_offset_condition = False
             y_offset_condition = False
 
-        #in this case is better to choose and stop the analysis?
+        # in this case is better to choose and stop the analysis?
         if x_offset_condition and y_offset_condition:
-            #print("buonding box tracking condition verified")
-            #resized_face_compare = cv2.resize(f['img'], (224, 224))
+            # print("buonding box tracking condition verified")
+            # resized_face_compare = cv2.resize(f['img'], (224, 224))
 
             # y_possible_face = model.predict(expand_dims(resized_face_compare, axis=0))
             #
@@ -247,6 +240,7 @@ def check_left_right_from_center(faces, width):
     else:
         return False
 
+
 def extract_left_right_faces(faces):
     if faces[0]['roi'][0] < faces[1]['roi'][0]:
         left = faces[0]
@@ -256,6 +250,7 @@ def extract_left_right_faces(faces):
         left = faces[1]
 
     return left, right
+
 
 def check_face_similarity(model, face_to_compare, faces_left_right):
     resized_face_compare = cv2.resize(face_to_compare['img'], (224, 224))
@@ -284,6 +279,7 @@ def from_detections_to_faces(frame, faces_info):
         faces.append(recover_all_face_info_from_index(frame, faces_info, i))
     return faces
 
+
 def recover_all_face_info_from_index(image, faces_info, index):
     roi = faces_info['rois'][index]
     confidence = faces_info['confidences'][index]
@@ -310,6 +306,7 @@ def extract_left_right_faces(faces):
 
     return left, right
 
+
 def compare_face_candidates(model, face_to_compare, faces, thresh=0.4):
     y_compare = face_to_compare['avg_feature']
     score_to_compare = 99999999
@@ -332,4 +329,3 @@ def compare_face_candidates(model, face_to_compare, faces, thresh=0.4):
             y_to_return = y_hat
 
     return face_to_return, y_to_return
-

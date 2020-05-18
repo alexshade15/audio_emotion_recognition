@@ -1,10 +1,5 @@
-import frames_classifier
-import audio_classifier
-
-import os
 import glob
 import random
-import operator
 import numpy as np
 
 from keras.models import Sequential, load_model
@@ -48,7 +43,7 @@ class VideoClassifier:
             random.shuffle(list_feature_vectors)
         while True:
             labels = []
-            features = np.zeros((batch_size, 2*self.classes)).astype('float')
+            features = np.zeros((batch_size, 2 * self.classes)).astype('float')
             for i in range(c, c + batch_size):
                 audio_path = list_feature_vectors[i].split(".")[0].replace("AFEW/aligned", self.feature_name)
                 label_from_audio = self.ac.clip_classification(audio_path)
@@ -63,12 +58,12 @@ class VideoClassifier:
                 if mode == "eval":
                     break
             labels = self.lb.transform(np.array(labels))
-            #print("\n\n\n#######features, labels: ", features.shape, labels.shape)
+            # print("\n\n\n#######features, labels: ", features.shape, labels.shape)
             yield features, labels
 
     def train_model(self, train_path, val_path, batch_size, epochs, learning_rate):
         model = Sequential()
-        model.add(Dense(16, input_shape=(2*self.classes,), activation='relu'))
+        model.add(Dense(16, input_shape=(2 * self.classes,), activation='relu'))
         model.add(Dense(7, activation='softmax'))
 
         model.compile(optimizer=Adam(learning_rate=learning_rate), loss='categorical_crossentropy',
@@ -87,7 +82,8 @@ class VideoClassifier:
 
         # tb_call_back = TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True)
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
-                                      validation_data=val_gen, validation_steps=(no_of_val_images // batch_size), workers=0)
+                                      validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
+                                      workers=0)
         #                              callbacks=[tb_call_back])
         # score = model.evaluate_generator(test_gen, no_of_test_images // batch_size)
         print("\n\nTrain Accuracy =", history.history['accuracy'])
@@ -97,5 +93,6 @@ class VideoClassifier:
 
         model.save("myVideoModel_" + history.history['val_accuracy'][-1] + ".h5")
         return model
+
 
 vc = VideoClassifier()

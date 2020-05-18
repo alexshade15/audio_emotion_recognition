@@ -158,9 +158,9 @@ def get_eyes_nose_open_face(csv_path):
         discarded_frames = []
         for row in csv_reader:
             landmarks = []
-            if line_count == 0:
+            if line_count != 0:
                 #print(f'Column names are {", ".join(row)}')
-            else:
+            # else:
 
                 if int(row[4]) == 1:
                     for i in positions_left:
