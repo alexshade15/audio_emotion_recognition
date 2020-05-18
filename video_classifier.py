@@ -48,14 +48,13 @@ class VideoClassifier:
             random.shuffle(list_feature_vectors)
         while True:
             labels = []
-            features = np.zeros((batch_size, 2 * len(self.classes))).astype('float')
+            features = np.zeros((batch_size, 2*self.classes)).astype('float')
             for i in range(c, c + batch_size):
-                label_from_audio = self.ac.clip_classification(list_feature_vectors[i].split(".")[0]
-                                                               .replace("AFEW/aligned", self.feature_name))
+                audio_path = list_feature_vectors[i].split(".")[0].replace("AFEW/aligned", self.feature_name)
+                label_from_audio = self.ac.clip_classification(audio_path)
                 graund_truth, label_from_frame = self.fc.make_a_prediction(list_feature_vectors[i])
-                print("\n\n\nlabel_from_audio, label_from_frame, graund_truth: ", label_from_audio, label_from_frame,
-                      graund_truth)
-                features[i - c] = np.append(self.lb.transform(label_from_audio), self.lb.transform(label_from_frame))
+                features[i - c] = np.append(self.lb.transform(np.array([label_from_audio])),
+                                            self.lb.transform(np.array([label_from_frame])))
                 labels.append(graund_truth)
             c += batch_size
             if c + batch_size > len(list_feature_vectors):
@@ -64,12 +63,12 @@ class VideoClassifier:
                 if mode == "eval":
                     break
             labels = self.lb.transform(np.array(labels))
-            print("\n\n\nfeatures, labels: ", features, labels)
+            #print("\n\n\n#######features, labels: ", features.shape, labels.shape)
             yield features, labels
 
     def train_model(self, train_path, val_path, batch_size, epochs, learning_rate):
         model = Sequential()
-        model.add(Dense(16, input_shape=(2 * len(self.classes),), activation='relu'))
+        model.add(Dense(16, input_shape=(2*self.classes,), activation='relu'))
         model.add(Dense(7, activation='softmax'))
 
         model.compile(optimizer=Adam(learning_rate=learning_rate), loss='categorical_crossentropy',
@@ -77,6 +76,9 @@ class VideoClassifier:
         model.summary()
 
         train_files = glob.glob(train_path + "/*/*csv")
+        train_files.remove("/user/vlongobardi/AFEW/aligned/Train/Surprise/011603980.csv")
+        train_files.remove("/user/vlongobardi/AFEW/aligned/Train/Angry/004510640.csv")
+        train_files.remove("/user/vlongobardi/AFEW/aligned/Train/Sad/001821420.csv")
         val_files = glob.glob(val_path + "/*/*csv")
         train_gen = self.data_gen(train_files, batch_size)
         val_gen = self.data_gen(val_files, batch_size)
@@ -85,7 +87,7 @@ class VideoClassifier:
 
         # tb_call_back = TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True)
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
-                                      validation_data=val_gen, validation_steps=(no_of_val_images // batch_size))
+                                      validation_data=val_gen, validation_steps=(no_of_val_images // batch_size), workers=0)
         #                              callbacks=[tb_call_back])
         # score = model.evaluate_generator(test_gen, no_of_test_images // batch_size)
         print("\n\nTrain Accuracy =", history.history['accuracy'])
@@ -96,13 +98,4 @@ class VideoClassifier:
         model.save("myVideoModel_" + history.history['val_accuracy'][-1] + ".h5")
         return model
 
-    def generate_audio_preds(self, basepath="/user/vlongobardi/AFEW/aligned/"):
-        train_files = glob.glob(basepath + "Train" + "/*/*csv")
-        val_files = glob.glob(basepath + "Val" + "/*/*csv")
-        audio_predictions = []
-        c = 0
-        for files in [train_files, val_files]:
-            for csv in files:
-                label_from_audio = self.ac.clip_classification(csv.split(".")[0].replace("AFEW/aligned", self.feature_name))
-                graund_truth, label_from_frame = self.fc.make_a_prediction(csv)
-                print("\n", label_from_audio, label_from_frame, graund_truth)
+vc = VideoClassifier()

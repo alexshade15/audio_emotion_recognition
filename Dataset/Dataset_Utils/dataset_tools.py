@@ -14,7 +14,7 @@ openface_command_faceland_img = '/data/s4180941/OpenFace/build/bin/FaceLandmarkI
 
 
 def print_cm(cm, labels, hide_zeroes=False, hide_diagonal=False, hide_threshold=None):
-    """pretty print for confusion matrixes"""
+    """pretty #print for confusion matrixes"""
     columnwidth = max([len(x) for x in labels] + [5])  # 5 is value length
     empty_cell = " " * columnwidth
     # Print header
@@ -39,7 +39,7 @@ def print_cm(cm, labels, hide_zeroes=False, hide_diagonal=False, hide_threshold=
 
 def extract_frames(src, dest, asr, cache_p, partition):
     """Call ffmpeg service and save all frames in dest folder"""
-    print("Calling FFMPEG on video: ", os.path.basename(src))
+    #print("Calling FFMPEG on video: ", os.path.basename(src))
 
     # command = ["ffmpeg", "-i", src,"-s", asr, "-q:a", "1", dest]
     command = ['ffmpeg', '-loglevel', 'info', '-hide_banner', '-nostats', '-i', src, '-s', asr, '-q:a', '1', dest]
@@ -81,14 +81,14 @@ def openface_call(openface_fdir, out_dir, cache_p, partition, bbox=None, as_img=
         command += ['-nobadaligned']
 
     try:
-        print("Calling OpenFace")
+        #print("Calling OpenFace")
         log_file = open(os.path.join(cache_p, 'OpenFace_output_' + partition + '.log'), "a")
         p = subprocess.Popen(command, stdout=log_file, stderr=log_file).wait()
         log_file.close()
 
         # p = subprocess.Popen(command, shell=True).wait()
 
-        print("End OpenFace")
+        #print("End OpenFace")
 
     except Exception as e:
         print(e)
@@ -131,7 +131,7 @@ def split_video(item=None, split_len=16, partition='Train'):
         pads = []
         # do padding if there are enough samples left
         if 'val' not in partition.lower():
-            print('Padding on train gen video')
+            #print('Padding on train gen video')
             if rest >= (split_len / 2):
                 for i in range(split_len - rest):
                     pads.append(video[-1])
@@ -352,10 +352,10 @@ def random_change_roi(roi, max_change_fraction=0.045, only_narrow=False, random_
         wh = _random_normal_crop(2, sigma * 2, mean=sigma / 2, positive=only_narrow).astype(int)
     else:
         xy, wh = random_values
-    # print("orig roi: %s" % str(roi))
-    # print("rand changes -> xy:%s, wh:%s" % (str(xy), str(wh)))
+    # #print("orig roi: %s" % str(roi))
+    # #print("rand changes -> xy:%s, wh:%s" % (str(xy), str(wh)))
     roi2 = (roi[0] + xy[0], roi[1] + xy[1], roi[2] - wh[0], roi[3] - wh[1])
-    # print("new roi: %s" % str(roi2))
+    # #print("new roi: %s" % str(roi2))
 
     return roi2
 
@@ -395,7 +395,7 @@ def draw_emotion(y, w, h):
     barh = h // len(EMOTIONS)
     MAXEMO = np.sum(y)
     for i, yi in enumerate(y):
-        # print((EMOTIONS[i], yi))
+        # #print((EMOTIONS[i], yi))
         p1, p2 = (0, i * barh), (int(yi * w // MAXEMO), (i + 1) * 20)
         # cv2.rectangle(emotionim, p1,p2, COLORS[i], cv2.FILLED)
         cv2.putText(emotionim, "%s: %.1f" % (EMOTIONS[i], yi), (0, i * 20 + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.6,

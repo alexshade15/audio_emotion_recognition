@@ -38,7 +38,7 @@ def get_avi_info():
     for dataset, emotion, name in generate_files(base_dir):
         command = "ffmpeg -i " + base_dir + dataset + "/" + emotion + "/" + name + ".avi"
         subprocess.call(command, shell=True)
-        print(base_dir + dataset + "/" + emotion + "/" + name, "\n\n\n")
+        #print(base_dir + dataset + "/" + emotion + "/" + name, "\n\n\n")
 
 
 def from_avi_to_wav():
@@ -46,11 +46,11 @@ def from_avi_to_wav():
     wav_dir = "/user/vlongobardi/temp_wav/"
     for file_path in generate_files(avi_dir):
         cmd = "ffmpeg -i " + avi_dir + file_path + ".avi -ab 128k -ac 2 -ar 48000 -vn " + wav_dir + file_path + ".wav"
-        # print(name, "\n\n\n")
+        # #print(name, "\n\n\n")
         subprocess.call(cmd, shell=True)
 
 
-# ffmpeg -y -i ~/AFEW/videos/Train/Angry/000046280.avi 2>&1 | grep Duration | awk '{print $2}' | tr -d ,
+# ffmpeg -y -i ~/AFEW/videos/Train/Angry/000046280.avi 2>&1 | grep Duration | awk '{#print $2}' | tr -d ,
 # ffmpeg -ss 0.3 -i ~/AFEW/videos/Train/Angry/000046280.avi -t 0.3 -ab 128k -ac 2 -ar 48000 -vn 000046280_0.wav
 def from_wav_to_clips():
     wav_dir = "/user/vlongobardi/temp_wav/"
@@ -60,13 +60,13 @@ def from_wav_to_clips():
     for file_path in generate_files(wav_dir):
         cmd = "ffmpeg -y -i " + wav_dir + file_path + ".wav temp_output.wav"
         bash_output = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-        # print("\n\n", bash_output.stderr.decode("utf-8"), "\n\n")
+        # #print("\n\n", bash_output.stderr.decode("utf-8"), "\n\n")
         duration = to_milliseconds(bash_output.stderr.decode("utf-8").split("Duration: ")[1].split(",")[0])
         i = 0
         d0 = frame_step
         cmd = "ffmpeg -y -i " + wav_dir + file_path + ".wav -t " + to_t_stamp(frame_size) + \
               " -ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i) + ".wav"
-        # print("\n\n", cmd)
+        # #print("\n\n", cmd)
         subprocess.call(cmd, shell=True)
         # if duration == 480:
         #     continue
@@ -78,14 +78,14 @@ def from_wav_to_clips():
             i += 1
             cmd = "ffmpeg -y -ss " + to_t_stamp(d0) + " -i " + wav_dir + file_path + ".wav -t " + to_t_stamp(frame_size) \
                   + " -ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i) + ".wav"
-            # print("\n\n", cmd)
+            # #print("\n\n", cmd)
             subprocess.call(cmd, shell=True)
             d0 += frame_step
         if d0 < duration:
             cmd = "ffmpeg -y -ss " + to_t_stamp(duration - frame_size) + " -i " + wav_dir + file_path + ".wav -t " + \
                   to_t_stamp(frame_size) + " -ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i + 1) \
                   + ".wav"
-            # print("\n\n", cmd)
+            # #print("\n\n", cmd)
             subprocess.call(cmd, shell=True)
 
 
@@ -98,4 +98,4 @@ def from_clips_to_feature(cfg_file="emobase2010.conf"):
         cmd = "SMILExtract -C " + config_path + " -I " + base_dir + file_path + ".wav -O " + feature_dir + file_path + \
               ".arff"  # -instname " + name
         subprocess.call(cmd, shell=True)
-        print("\n\n")
+        #print("\n\n")

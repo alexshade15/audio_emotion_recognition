@@ -6,10 +6,10 @@ class MTCNN_detector():
     net = None
 
     def __init__(self, steps_threshold = [0.6, 0.7, 0.7]):
-        print("FaceDetector MTCNN -> init")
+        #print("FaceDetector MTCNN -> init")
         self.net = MTCNN(steps_threshold=steps_threshold)
         self.min_confidence = steps_threshold
-        print("FaceDetector MTCNN -> init ok")
+        #print("FaceDetector MTCNN -> init ok")
 
     def detect(self, image):
 
@@ -44,4 +44,4 @@ class MTCNN_detector():
 
 
     def __del__(self):
-        print("FaceDetector -> bye")
+        #print("FaceDetector -> bye")

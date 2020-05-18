@@ -44,7 +44,7 @@ def recover_dataset(aligned_dataset_dir, moved_invalid_dir, videos_dir, detectio
             align_info.close()
             percentage_discarded = discarded_frames / readed_frames
             video_name_orginal = os.path.basename(file_csv[:-4])
-            print(video_name_orginal + " discarded: " + str(percentage_discarded))
+            #print(video_name_orginal + " discarded: " + str(percentage_discarded))
 
             if percentage_discarded > minimum_percentage:
 
@@ -88,7 +88,7 @@ def recover_dataset(aligned_dataset_dir, moved_invalid_dir, videos_dir, detectio
 
                 new_discarded = _recover_video(aligned_dataset_dir, recover_dir_frames, recover_dir_openface, detections_map, cache_p,
                                video_name_orginal, shape)
-                print("New discarded percentage: ",new_discarded)
+                #print("New discarded percentage: ",new_discarded)
                 if new_discarded < percentage_discarded:
                     video_to_move_frames = os.path.join(
                         os.path.join(aligned_dataset_dir, video_name_orginal + '_aligned'))
@@ -100,10 +100,10 @@ def recover_dataset(aligned_dataset_dir, moved_invalid_dir, videos_dir, detectio
                     shutil.move(aligned_folder, aligned_dataset_dir)
                     shutil.move(os.path.join(recover_dir_openface, video_name_orginal + '.csv'), aligned_dataset_dir)
                 else:
-                    print("video "+video_name_orginal+" NOT substituded with a recovered version")
+                    #print("video "+video_name_orginal+" NOT substituded with a recovered version")
                 shutil.rmtree(recover_dir_video)
             else:
-                print("video {0} is good with {1} of invalid frames".format(video_name_orginal, percentage_discarded))
+                #print("video {0} is good with {1} of invalid frames".format(video_name_orginal, percentage_discarded))
 
     return recovered_list
 

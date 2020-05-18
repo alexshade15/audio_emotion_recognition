@@ -25,7 +25,7 @@ from tqdm import tqdm
 import joblib
 from Dataset.Dataset_Utils.dataset_tools import openface_call, extract_frames, get_output_size
 
-print("start exec")
+#print("start exec")
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 cache_p = '/user/rpalladino/Dataset/AFEW/AFEW_Cache'
 input_p_ds = '/user/rpalladino/Dataset/AFEW/'
@@ -40,7 +40,7 @@ class AFEW_dataset:
                  cache_path=cache_p):
         self.info = list()
         self.partition = partition
-        print("Loading: ", partition)
+        #print("Loading: ", partition)
 
         # first stage detections
         cache_path_partition = os.path.join(cache_path, partition)
@@ -61,11 +61,11 @@ class AFEW_dataset:
         # openface preprocessing
         try:
             with open(os.path.join(cache_path_partition, cache_file_name_openface_done), 'rb') as f:
-                print("Openface preprocess already done")
+                #print("Openface preprocess already done")
 
         except FileNotFoundError:
-            print('File not found,creating...')
-            print('Openface file not found, initializing openface...')
+            #print('File not found,creating...')
+            #print('Openface file not found, initializing openface...')
 
             temp_path_extraction = os.path.join(input_path, "temp_extraction", partition)
             Path(temp_path_extraction).mkdir(parents=True, exist_ok=True)
@@ -89,7 +89,7 @@ class AFEW_dataset:
                                   as_img=False)
                     shutil.rmtree(temp_path_extraction_single_video)
 
-            print("doing backup on cache file")
+            #print("doing backup on cache file")
             map_dump = {}
             with open(os.path.join(cache_path_partition, cache_file_name_openface_done), 'wb') as f:
                 joblib.dump(map_dump, f)
@@ -102,8 +102,8 @@ class AFEW_dataset:
                     open(os.path.join(cache_path_partition, cache_file_name_recover_single_done), 'rb'))
 
         except FileNotFoundError:
-            print('File recover single face not found,creating...')
-            print("Recovering single face")
+            #print('File recover single face not found,creating...')
+            #print("Recovering single face")
             # aligned dir recover is the output folder containing aligned recovered videos
 
             for label_folder in glob(os.path.join(video_path_partition, '*')):
@@ -129,7 +129,7 @@ class AFEW_dataset:
 #     dt = AFEW_dataset(partition='Val')
 #     dg = dt.get_video_generator(random_windows=True, augmenter=DefaultAugmenter(), n_seq_per_epoch=2400)
 #     for batchs_img, batchs_lbl in dg:
-#         print(batchs_img.shape)
+#         #print(batchs_img.shape)
 #         for sequence, label in zip(batchs_img, batchs_lbl):
 #
 #             for x in sequence:
@@ -138,8 +138,8 @@ class AFEW_dataset:
 #                 x = 255 * (x - MIN) / (MAX - MIN)
 #                 x = x.clip(0, 255).astype(np.uint8)
 #                 cv2.imshow('x', x)
-#                 print(label)
+#                 #print(label)
 #                 if 0xff & cv2.waitKey(40) == 27:
 #                     sys.exit(0)
 #
-#             print("\n\nNEW SEQ")
+#             #print("\n\nNEW SEQ")

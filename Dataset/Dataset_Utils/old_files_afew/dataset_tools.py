@@ -21,7 +21,7 @@ base_path = os.path.dirname(os.path.abspath(__file__))
 
 
 def print_cm(cm, labels, hide_zeroes=False, hide_diagonal=False, hide_threshold=None):
-    """pretty print for confusion matrixes"""
+    """pretty #print for confusion matrixes"""
     columnwidth = max([len(x) for x in labels] + [5])  # 5 is value length
     empty_cell = " " * columnwidth
     # Print header
@@ -68,17 +68,17 @@ def filter_blacklist(data):
 def _read_dataset(partition, input_path_ds, output_path_cache=base_path + '/CacheFrameProcessing',
                   debug_max_num_samples=None, cache_p=None):
     """read a partition of dataset"""
-    print("Init reading from video files")
+    #print("Init reading from video files")
     data = []
     if not os.path.isdir(output_path_cache):
         os.makedirs(output_path_cache)
     # iterate partition
     for set in list_dirs(input_path_ds):
         if partition == os.path.basename(set):
-            print("Processing partition: ", partition)
+            #print("Processing partition: ", partition)
             # for this partition extract all video frames
             for class_dir in tqdm(list_dirs(set)):
-                print("Procssing class: ", os.path.basename(class_dir))
+                #print("Procssing class: ", os.path.basename(class_dir))
                 # init params
                 openface_fdir = ""
                 label = os.path.basename(class_dir)
@@ -99,7 +99,7 @@ def _read_dataset(partition, input_path_ds, output_path_cache=base_path + '/Cach
 
 
 def recover_data(input_path_ds, output_cache_path, cache_p, partition, failed_sequences):
-    print("Recovering failed videos")
+    #print("Recovering failed videos")
     recovered = []
     recover_path = output_cache_path
     if not os.path.isdir(recover_path):
@@ -151,11 +151,11 @@ def recover_data(input_path_ds, output_cache_path, cache_p, partition, failed_se
             new_seq.append(returned_sequences[i])
             new_map_info.append(map_infos[i])
             recovered += process_data(new_seq, new_map_info, label)
-            print("Successful recovered: " + item_to_del)
+            #print("Successful recovered: " + item_to_del)
         else:
             print("Error recovering: " + item_to_del + " , Skipping!")
 
-    print("End recovering failed data")
+    #print("End recovering failed data")
     return recovered
 
 
@@ -199,7 +199,7 @@ def get_bbox(recover_path, fd, openface_fdir):
                     if os.path.basename(dir) in x:
                         openface_fdir.remove(x)
                 shutil.rmtree(dir)
-                print("empty deleted: ", str(dir))
+                #print("empty deleted: ", str(dir))
 
     return bb_dir, openface_fdir
 
@@ -222,11 +222,11 @@ def check_data(data, output_cache_path, cache_p, partition, input_path_ds):
     tatal_frames_discarded = 0  # without face or with wrong prediction
     total_faces_recognized_percentage = list()  # percentage of face recognition/alignment success
     total_failed_sequences = list()  # will contain all video's names failed during pre process
-    print("Checking data integrity")
+    #print("Checking data integrity")
     # open statistic file in order to store statistics data
     csv.register_dialect('mydialect', delimiter=';', quotechar='"', lineterminator='\r\n', quoting=csv.QUOTE_MINIMAL)
     with open(os.path.join(cache_p, 'dataset_' + partition + '_statistics.csv'), 'w', newline='') as stats_file:
-        print("Stats log file opened")
+        #print("Stats log file opened")
         writer = csv.writer(stats_file, dialect='mydialect')
         writer.writerow(["Video", "Label", "Total frames", "Discarded frames", "face_presence_percentage"])
         item_to_del = []
@@ -280,7 +280,7 @@ def check_data(data, output_cache_path, cache_p, partition, input_path_ds):
         writer.writerow([total_frames, tatal_frames_discarded, np.mean(total_faces_recognized_percentage),
                          '\r\n'.join([x[0] for x in total_failed_sequences])])
         stats_file.close()
-    print("End check data integrity")
+    #print("End check data integrity")
 
     return data
 
@@ -307,10 +307,10 @@ def extract_frames_from_video_folder(input_avi, output_path_cache, debug_max_num
     # iterate over all video in dir
     openface_fdir = []
 
-    print("Init Frames Extraction")
+    #print("Init Frames Extraction")
     current_num_samples = 0
 
-    print("Extracting")
+    #print("Extracting")
     for f in tqdm(range(0, file_list.__len__())):
         file_to_read = os.path.normpath(file_list[f])
         try:
@@ -333,18 +333,18 @@ def extract_frames_from_video_folder(input_avi, output_path_cache, debug_max_num
         except:
             # check and count video lost
             error_video.append(aviName)
-            print(aviName + ' ffmpeg failed' + '\n')
+            #print(aviName + ' ffmpeg failed' + '\n')
 
         current_num_samples += 1
 
-    print("End Frames Extraction")
+    #print("End Frames Extraction")
 
     return openface_fdir, error_video
 
 
 def extract_frames(src, dest, asr, cache_p, partition):
     """Call ffmpeg service and save all frames in dest folder"""
-    print("Calling FFMPEG on video: ", os.path.basename(src))
+    #print("Calling FFMPEG on video: ", os.path.basename(src))
 
     # command = ["ffmpeg", "-i", src,"-s", asr, "-q:a", "1", dest]
     command = ['ffmpeg', '-loglevel', 'info', '-hide_banner', '-nostats', '-i', src, '-s', asr, '-q:a', '1', dest]
@@ -410,12 +410,12 @@ def openface_call(openface_fdir, out_dir, cache_p, partition, bbox = None, as_im
                 '-format_aligned', 'jpg', '-nomask', '-simalign', '-wild', '-multi_view', '1','-nobadaligned']
 
     try:
-        print("Calling OpenFace")
+        #print("Calling OpenFace")
         log_file = open(os.path.join(cache_p, 'OpenFace_output_' + partition + '.log'), "a")
         p = subprocess.Popen(command, stdout=log_file, stderr=log_file).wait()
         log_file.close()
 
-        print("End OpenFace")
+        #print("End OpenFace")
 
 
     except Exception as e:
@@ -428,7 +428,7 @@ def openface_call(openface_fdir, out_dir, cache_p, partition, bbox = None, as_im
 def pre_process_video(openface_fdir, frames_dir, cache_p, partition, resize_shape=(224, 224), bbox=None, as_img=False):
     aligned_videos = []
     all_maps = []
-    print("Init pre processing")
+    #print("Init pre processing")
 
     openface_call(openface_fdir,frames_dir,cache_p,partition,bbox,as_img)
     # theshold for diltering out bad faces
@@ -475,7 +475,7 @@ def pre_process_video(openface_fdir, frames_dir, cache_p, partition, resize_shap
                 # when everything is done flush directories
                 shutil.rmtree(frames_dir + "/" + filename + "_aligned")
                 os.remove(frames_dir + "/" + filename + ".csv")
-    print("End pre processing")
+    #print("End pre processing")
 
     return aligned_videos, all_maps
 
@@ -517,7 +517,7 @@ def split_video(item=None, split_len=16, partition='Train'):
         pads = []
         # do padding if there are enough samples left
         if 'val' not in partition.lower():
-            print('Padding on train gen video')
+            #print('Padding on train gen video')
             if rest >= (split_len / 2):
                 for i in range(split_len - rest):
                     pads.append(video[-1])
@@ -734,10 +734,10 @@ def random_change_roi(roi, max_change_fraction=0.045, only_narrow=False, random_
         wh = _random_normal_crop(2, sigma * 2, mean=sigma / 2, positive=only_narrow).astype(int)
     else:
         xy, wh = random_values
-    print("orig roi: %s" % str(roi))
-    print("rand changes -> xy:%s, wh:%s" % (str(xy), str(wh)))
+    #print("orig roi: %s" % str(roi))
+    #print("rand changes -> xy:%s, wh:%s" % (str(xy), str(wh)))
     roi2 = (roi[0] + xy[0], roi[1] + xy[1], roi[2] - wh[0], roi[3] - wh[1])
-    print("new roi: %s" % str(roi2))
+    #print("new roi: %s" % str(roi2))
 
     return roi2
 
@@ -777,7 +777,7 @@ def draw_emotion(y, w, h):
     barh = h // len(EMOTIONS)
     MAXEMO = np.sum(y)
     for i, yi in enumerate(y):
-        # print((EMOTIONS[i], yi))
+        # #print((EMOTIONS[i], yi))
         p1, p2 = (0, i * barh), (int(yi * w // MAXEMO), (i + 1) * 20)
         # cv2.rectangle(emotionim, p1,p2, COLORS[i], cv2.FILLED)
         cv2.putText(emotionim, "%s: %.1f" % (EMOTIONS[i], yi), (0, i * 20 + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.6,

@@ -89,9 +89,9 @@ def loadAFEW(datadir, max_invalid, sequence_len):  # 12, 16
             if invalid < len(frames_info) - (sequence_len - max_invalid) and count >= sequence_len:
                 videos[vname] = frames_info
             else:
-                print("removed: " + label_folder + " " + vname)
+                #print("removed: " + label_folder + " " + vname)
                 removed_videos += 1
-    print("Total removed: ", removed_videos)
+    #print("Total removed: ", removed_videos)
 
     return videos
 
@@ -117,13 +117,14 @@ def load_test_AFEW(csv_path, max_invalid, sequence_len):  # 12, 16
         frames_info.append(thisframe)
         if not thisframe['success'] or thisframe['confidence'] < 0.2:
             invalid += 1
-
+    #print("\n\n\ninvalid < len(frames_info) - (sequence_len - max_invalid) and len(frames_info) >= sequence_len")
+    #print(invalid, "<", len(frames_info)," - (", sequence_len, "-", max_invalid, ")", "and", len(frames_info), ">=", sequence_len)
     if invalid < len(frames_info) - (sequence_len - max_invalid) and len(frames_info) >= sequence_len:
         videos[id_clip] = frames_info
     else:
-        print("removed: " + os.path.dirname(csv_path) + " " + id_clip)
+        #print("removed: " + os.path.dirname(csv_path) + " " + id_clip)
         removed_videos += 1
-    print("Total removed: ", removed_videos)
+    #print("Total removed: ", removed_videos)
 
     return videos
 
@@ -196,7 +197,7 @@ class DataGenerator(keras.utils.Sequence):
         else:
             raise
 
-        print("video loaded: ", len(self.videos))
+        #print("video loaded: ", len(self.videos))
         self.random_windows = random_windows
 
         if not random_windows:
@@ -204,10 +205,10 @@ class DataGenerator(keras.utils.Sequence):
             splitted_videos_tuple = []
 
             if self.split_len > 1:
-                print("Num seq before removing: ", self.count_seq(splitted_videos_before_removing))
+                #print("Num seq before removing: ", self.count_seq(splitted_videos_before_removing))
 
                 splitted_videos_after_removing = self._remove_invalid_sequences(splitted_videos_before_removing)
-                print("Num seq after removing: ", self.count_seq(splitted_videos_after_removing))
+                #print("Num seq after removing: ", self.count_seq(splitted_videos_after_removing))
                 if sequence_len == 1:
                     for k, v in splitted_videos_after_removing.items():
                         assert len(v) >= n_seq_per_epoch
@@ -229,7 +230,7 @@ class DataGenerator(keras.utils.Sequence):
                     splitted_videos_tuple.append((k, video_dict))
             self.splitted_videos_tuple = splitted_videos_tuple
 
-            print("number of sequences final: ", len(self.splitted_videos_tuple))
+            #print("number of sequences final: ", len(self.splitted_videos_tuple))
 
         self.on_epoch_end()
 
@@ -250,7 +251,7 @@ class DataGenerator(keras.utils.Sequence):
         frame = cv2.imread(impath)
 
         if frame is None:
-            # print("Unable to load %s" % impath)
+            # #print("Unable to load %s" % impath)
             return None
         else:
             roi = DEFAULT_ROI
@@ -294,8 +295,8 @@ class DataGenerator(keras.utils.Sequence):
 
         not_none = next((f for f in frames if (f is not None and not np.array_equal(f, np.zeros((f.shape))))), None)
         if not_none is None:
-            print("all frames are none: ", video_key)
-            # print(video_key,framerange)
+            #print("all frames are none: ", video_key)
+            # #print(video_key,framerange)
             # All frames are None
             return None, labels
 
@@ -350,18 +351,18 @@ class DataGenerator(keras.utils.Sequence):
                 elif np.array_equal(frame_read, np.zeros(frame_read.shape)):
                     invalid[i] = 1
 
-            # print(t,np.sum(invalid),video_key)
+            # #print(t,np.sum(invalid),video_key)
             if np.sum(invalid) <= self.max_invalid:
                 return self._get_sequence(video_key, framerange)
 
     def __len__(self):
         if self.random_windows:
-            print("number of batches (random): ", self.n_seq_per_epoch // self.batch_size)
+            #print("number of batches (random): ", self.n_seq_per_epoch // self.batch_size)
 
             return self.n_seq_per_epoch // self.batch_size
         else:
-            print('batch size: ', self.batch_size)
-            print("number of batches (not random): ", len(self.splitted_videos_tuple) // self.batch_size)
+            #print('batch size: ', self.batch_size)
+            #print("number of batches (not random): ", len(self.splitted_videos_tuple) // self.batch_size)
 
             return len(self.splitted_videos_tuple) // self.batch_size
 
@@ -381,9 +382,9 @@ class DataGenerator(keras.utils.Sequence):
         Y = []
         # if self.dataset == 'afew':
         #     Y = np.empty((self.batch_size, 7))
-        print("INDEX; BS:", index, self.batch_size)
+        #print("INDEX; BS:", index, self.batch_size)
         for i in range(index, index + self.batch_size):
-            print("I:", i)
+            #print("I:", i)
             if self.random_windows:
                 i = i % len(self.videos)
                 video_key = self.video_keys_order[i]

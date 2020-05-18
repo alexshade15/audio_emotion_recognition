@@ -29,7 +29,7 @@ class Inference:
 
     def __init__(self, model=None, partition='Val', baseline_pretrained_on='AFEW', custom_inference=False, time_step=16,
                  classification=True):
-        print('Init Inference')
+        #print('Init Inference')
         self.partition = partition
         self.model = model
         self.pretrain_data = baseline_pretrained_on
@@ -62,8 +62,8 @@ class Inference:
         return stats
 
     def predict_generator(self, gen=None, mode=''):
-        print('Evaluating ', str(len(gen)), ' batches')
-        for i, batch in enumerate(tqdm(gen)):
+        #print('Evaluating ', str(len(gen)), ' batches')
+        for i, batch in enumerate(gen):
             self.predict_on_batch(batch, mode)
 
         return self.true, self.predicted
@@ -134,10 +134,10 @@ class Inference:
             mode_prediction = statistics.mode(predictions_frames_classes)
             mode_prediction = self.classes[mode_prediction]
         except statistics.StatisticsError as e:
-            # print("eccezione")
+            # #print("eccezione")
             freqs = groupby(Counter(predictions_frames_classes).most_common(), lambda x: x[1])
             multiple = [val for val, count in next(freqs)[1]]
-            # print("multiple ",multiple)
+            # #print("multiple ",multiple)
             average_prediction = np.sum(predictions_single_clip_prob, axis=0)
             if self.pretrain_data == 'FER':
                 average_prediction = np.squeeze(average_prediction)
@@ -201,10 +201,10 @@ class Inference:
             mode_prediction = statistics.mode(predictions_frames_classes)
             mode_prediction = self.classes[mode_prediction]
         except statistics.StatisticsError as e:
-            # print("eccezione")
+            # #print("eccezione")
             freqs = groupby(Counter(predictions_frames_classes).most_common(), lambda x: x[1])
             multiple = [val for val, count in next(freqs)[1]]
-            # print("multiple ",multiple)
+            # #print("multiple ",multiple)
             average_prediction = np.sum(predictions_single_clip_prob, axis=0)
             if self.pretrain_data == 'FER':
                 average_prediction = np.squeeze(average_prediction)
@@ -268,10 +268,10 @@ class Inference:
             mode_prediction = statistics.mode(predictions_frames_classes)
             mode_prediction = self.classes[mode_prediction]
         except statistics.StatisticsError as e:
-            # print("eccezione")
+            # #print("eccezione")
             freqs = groupby(Counter(predictions_frames_classes).most_common(), lambda x: x[1])
             multiple = [val for val, count in next(freqs)[1]]
-            # print("multiple ",multiple)
+            # #print("multiple ",multiple)
             average_prediction = np.sum(predictions_single_clip_prob, axis=0)
             if self.pretrain_data == 'FER':
                 average_prediction = np.squeeze(average_prediction)
@@ -321,8 +321,8 @@ class Inference:
         ccc_arousal_list = []
         ccc_valence_list = []
         true = np.array(true)
-        # print(predicted.shape)
-        # print(np.array(predicted[0]).shape)
+        # #print(predicted.shape)
+        # #print(np.array(predicted[0]).shape)
         # predicted = np.array(predicted)
         for i in range(len(true)):
             # valence
@@ -337,7 +337,7 @@ class Inference:
             ccc_arousal = self._calculate_ccc_single(true_arousal, predicted_arousal)
             ccc_arousal_list.append(ccc_arousal)
 
-            print("ccc (v,a): {} | {}".format(ccc_valence, ccc_arousal))
+            #print("ccc (v,a): {} | {}".format(ccc_valence, ccc_arousal))
 
         ccc_arousal_mean = np.mean(ccc_arousal_list)
         ccc_valence_mean = np.mean(ccc_valence_list)
@@ -507,7 +507,7 @@ def stats_to_csv(stats_path='', only_cnn=False):
                 csvFile.close()
         except:
             error_c += 1
-            print('error on stats.log     |     error count: ', str(error_c))
+            #print('error on stats.log     |     error count: ', str(error_c))
 
 
 # TEST INFERENCE -------------------
@@ -566,10 +566,10 @@ if __name__ == '__main__':
 
     #RESULTS ---------------------
 
-    print('Confusion Matrix :')
-    print(results[0]) 
-    print('Accuracy Score :',results[1]) 
-    print('Report : ')
-    print(results[2]) """
+    #print('Confusion Matrix :')
+    #print(results[0]) 
+    #print('Accuracy Score :',results[1]) 
+    #print('Report : ')
+    #print(results[2]) """
     stats_to_csv(stats_path='/data/s4175719/AllTrainHistories/seres_lstm/afew/2_livelli_wm_and_reg_last',
                  only_cnn=False)

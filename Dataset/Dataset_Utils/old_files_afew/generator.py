@@ -47,7 +47,7 @@ class DataGenerator(keras.utils.Sequence):
     def __getitem__(self, index):
         self.mutex.acquire()
         if self.cur_index >= len(self.data):
-            print("Reset")
+            #print("Reset")
             self.cur_index = 0
         i = self.cur_index
         self.cur_index += self.batch_size
@@ -90,7 +90,7 @@ class DataGenerator(keras.utils.Sequence):
         img = img.astype(np.float32)
         img = linear_balance_illumination(img)
         if np.abs(np.min(img) - np.max(img)) < 1:
-            print("WARNING: Image is =%d" % np.min(img))
+            #print("WARNING: Image is =%d" % np.min(img))
         else:
             img = mean_std_normalize(img)
         if self.target_shape[2] == 3 and (len(img.shape) < 3 or img.shape[2] < 3):

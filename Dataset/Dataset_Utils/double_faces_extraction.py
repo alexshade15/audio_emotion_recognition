@@ -19,7 +19,7 @@ def double_faces_extraction(double_face_video_path, detections, temp_dir_double_
     video_name = video_double[:-4]
     video_frames_extraction_folder = os.path.join(temp_dir_double_extraction,video_name)
 
-    # print("Processing video")
+    # #print("Processing video")
     analysis_step = True
     right_face = {'best_img': None, 'features': [], 'avg_feature': None, 'rois':[]}
     left_face = {'best_img': None, 'features': [], 'avg_feature': None, 'rois':[]}
@@ -35,7 +35,7 @@ def double_faces_extraction(double_face_video_path, detections, temp_dir_double_
     counter_for_analysis = 0
     counter_maximum_frame_analysis = 20
 
-    # print("Processing: ", video_name)
+    # #print("Processing: ", video_name)
     pbar = tqdm(total=len(detections))
     total = len(detections)
     previous_f = {}
@@ -84,7 +84,7 @@ def double_faces_extraction(double_face_video_path, detections, temp_dir_double_
 
 
                 elif len(faces) == 1:
-                    print("only one face")
+                    #print("only one face")
                     checked_similarity, pred = check_face_similarity(face_model, faces[0],
                                                                      (left_face, right_face))
                     if (checked_similarity == 0 and current_annotation == 'left') or (
@@ -99,7 +99,7 @@ def double_faces_extraction(double_face_video_path, detections, temp_dir_double_
 
                 # detection fails --> return map_if_error error
                 else:
-                    print("detection problem: ", frame_counter)
+                    #print("detection problem: ", frame_counter)
 
                     f = None
                 if (f is not None) and (f['img'].size != 0):
@@ -133,7 +133,7 @@ def double_faces_extraction(double_face_video_path, detections, temp_dir_double_
 
         else:
             if not analysis_step:
-                print("ret False")
+                #print("ret False")
 
                 # in this case just append a None object (interpolation to do after this stage), cv2 video fails
 
@@ -199,7 +199,7 @@ def findFaceOnSide(model, faces, faces_left_right, right, width, previous_roi):
 
         #in this case is better to choose and stop the analysis?
         if x_offset_condition and y_offset_condition:
-            print("buonding box tracking condition verified")
+            #print("buonding box tracking condition verified")
             #resized_face_compare = cv2.resize(f['img'], (224, 224))
 
             # y_possible_face = model.predict(expand_dims(resized_face_compare, axis=0))
@@ -210,13 +210,13 @@ def findFaceOnSide(model, faces, faces_left_right, right, width, previous_roi):
                 y_compare = faces_left_right[0]['avg_feature']
             #
             # score = cosine(y_compare, y_possible_face)
-            # # print("tracking: condizione verificata con score:", score)
+            # # #print("tracking: condizione verificata con score:", score)
             # if score < 0.6:
             #     return f, y_possible_face
 
             return f, y_compare
         else:
-            # print("tracking: condizione NON verificata")
+            # #print("tracking: condizione NON verificata")
 
             if right:
                 if f['roi'][0] > start_bound:
@@ -323,7 +323,7 @@ def compare_face_candidates(model, face_to_compare, faces, thresh=0.4):
         # todo check
 
         if score < 0.25:
-            # print("condizione di score OK < 0.25")
+            # #print("condizione di score OK < 0.25")
             return face, y_hat
 
         if score < score_to_compare and score < 0.4:

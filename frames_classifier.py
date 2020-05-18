@@ -26,4 +26,7 @@ class FramesClassidier:
         inference = Inference(model=self.model, custom_inference=True, time_step=50)
         _clear_past_predictions(inference)
         graund_truth, prediction = inference.predict_generator(test_gen, mode="overlap")
-        return graund_truth, prediction
+        if len(graund_truth) == 0:
+            print(path)
+            return None, None
+        return graund_truth[0], prediction[0]

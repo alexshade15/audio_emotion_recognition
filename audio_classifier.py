@@ -61,7 +61,7 @@ class AudioClassifier:
             bs = 16
             ep = 50
             lr = 0.01
-            print("epochs:", ep, "batch_size:", bs, "lr:", lr)
+            #print("epochs:", ep, "batch_size:", bs, "lr:", lr)
             self.feature_number = get_feature_number(base_path.split("/")[-2])
             self.model = self.train_model(base_path + "Train", base_path + "Val", bs, ep, lr, self.feature_number)
 
@@ -70,6 +70,7 @@ class AudioClassifier:
         for c in self.classes:
             all_predictions[c] = 0
         for feature_vector_path in glob.glob(path_clip_beginngin + "*"):
+            ##print("FEATURE_PATH", feature_vector_path)
             pred, ground_truth = self.test_model(feature_vector_path)
             all_predictions[pred] += 1
         return max(all_predictions.items(), key=operator.itemgetter(1))[0]
@@ -77,10 +78,10 @@ class AudioClassifier:
     def test_model(self, sample_path):
         sample = np.array(from_arff_to_feture(sample_path)).reshape(1, self.feature_number)
         ground_truth = sample_path.split("/")[-2]
-        # print("\n\n\nSAMPLE_PATH, sample_sape", sample_path, sample.shape)
-        # print("model_input shape", self.model.layers[0].input_shape)
+        # #print("\n\n\nSAMPLE_PATH, sample_sape", sample_path, sample.shape)
+        # #print("model_input shape", self.model.layers[0].input_shape)
         prediction = self.model.predict(sample)
-        return self.lb.inverse_transform(prediction), ground_truth
+        return self.lb.inverse_transform(prediction)[0], ground_truth
 
     def print_confusion_matrix(self, val_path):
         predictions = []
@@ -163,4 +164,4 @@ class AudioClassifier:
 
 # import audio_classifier
 # ac = audio_classifier.AudioClassifier("myModel_17.h5")
-# ac.print_confusion_matrix("/user/vlongobardi/audio_feature_IS09_emotion/Val/")
+# ac.#print_confusion_matrix("/user/vlongobardi/audio_feature_IS09_emotion/Val/")

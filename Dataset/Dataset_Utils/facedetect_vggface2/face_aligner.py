@@ -17,9 +17,9 @@ class FaceAligner:
     predictor = None
 
     def __init__(self):
-        print("FaceAligner -> init")
+        #print("FaceAligner -> init")
         self.predictor = dlib.shape_predictor(PATH)
-        print("FaceAligner -> init ok")
+        #print("FaceAligner -> init ok")
 
     def align(self,image,roi):
         landmarks = self.get_landmarks(image, roi)
@@ -82,4 +82,4 @@ class FaceAligner:
         return self.predictor(image, box)
         
     def __del__(self):
-        print("FaceAligner -> bye")
+        #print("FaceAligner -> bye")

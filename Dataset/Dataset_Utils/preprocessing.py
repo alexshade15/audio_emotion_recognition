@@ -10,8 +10,8 @@ def preprocessing_full(img, impath):
     img = linear_balance_illumination(img)
     
     if np.abs(np.min(img)-np.max(img)) < 1:
-        print("WARNING: Image is =%d" % np.min(img), "where:", impath)
-        
+        #print("WARNING: Image is =%d" % np.min(img), "where:", impath)
+        i = 0
     else:
         img = mean_std_normalize(img)
     return img

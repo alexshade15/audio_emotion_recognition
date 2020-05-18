@@ -51,7 +51,7 @@ class PointState():
         self._point = (estimated[0], estimated[1])
 
         self._predict()
-        # print("predicted: ",self._point)
+        # #print("predicted: ",self._point)
 
     def get_point(self):
         return self._point
@@ -115,7 +115,7 @@ class PointState():
         p1, _st, _err = cv2.calcOpticalFlowPyrLK(prev_frame, curr_frame, prev_landmarks, None, **lk_params)
         for i in range(len(_st)):
             if _st[i]:
-                # print("normale, err: ",_err[i])
+                # #print("normale, err: ",_err[i])
                 track_points[i].update((p1[i] + curr_landmarks[i]) / 2)
 
             else:
@@ -159,7 +159,7 @@ def get_eyes_nose_open_face(csv_path):
         for row in csv_reader:
             landmarks = []
             if line_count == 0:
-                print(f'Column names are {", ".join(row)}')
+                #print(f'Column names are {", ".join(row)}')
             else:
 
                 if int(row[4]) == 1:
@@ -179,7 +179,7 @@ def get_eyes_nose_open_face(csv_path):
                     discarded_frames.append(line_count - 1)
 
             line_count += 1
-        print(discarded_frames)
+        #print(discarded_frames)
     return landmarks_final, discarded_frames
 
 
@@ -187,13 +187,13 @@ def align_openface(input_dir, out_dir_aligned, target_shape=400):
     command = ['C:/Users/robpa/Desktop/Roberto/OpenFace_2.2.0_win_x64/FeatureExtraction.exe', '-fdir', input_dir,
                '-out_dir', out_dir_aligned, '-simsize', str(target_shape),
                '-format_aligned', 'png', '-nomask', '-wild', '-multiview', '1', '-simalign', '-2Dfp']
-    print("OPENFACEEEE CALL")
+    #print("OPENFACEEEE CALL")
     subprocess.Popen(command).wait()
-    print("OPENFACEEEE ENDL")
+    #print("OPENFACEEEE ENDL")
 
     dest = out_dir_aligned + "/frames_aligned"
     frames_aligned = []
-    print("ITERATE")
+    #print("ITERATE")
 
     for frame_name in sorted(os.listdir(dest)):
 
@@ -329,7 +329,7 @@ def face_landmarks_tracking_frames(frames, input_dir_frames, out_openface, align
 
             for tp in track_points:
                 cv2.circle(frame, tp.get_point(), 2, (0, 255, 0), -1)
-            # print("\n\n")
+            # #print("\n\n")
             for land in landmarks:
                 cv2.circle(frame, land, 2, (255, 0, 0), -1)
 
@@ -349,7 +349,7 @@ def face_landmarks_tracking_frames(frames, input_dir_frames, out_openface, align
             cv2.imshow("OPENFACE LANDMARK", aligned_face_open_landmark)
 
             cv2.waitKey(50)
-            # print("ciao")
+            # #print("ciao")
 
 
 def extract_frames(src, dest, asr, extract=False):

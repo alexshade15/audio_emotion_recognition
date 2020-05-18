@@ -8,10 +8,10 @@ configFile=os.path.join(PATH, "deploy.prototxt")
 class FaceDetector:
     net = None
     def __init__(self, min_confidence=0.5):
-        print ("FaceDetector -> init")
+        #print ("FaceDetector -> init")
         self.net = cv2.dnn.readNetFromCaffe(configFile, modelFile)
         self.min_confidence = min_confidence
-        print ("FaceDetector -> init ok")
+        #print ("FaceDetector -> init ok")
     
     def detect(self, image):
         blob = cv2.dnn.blobFromImage(image, 1.0, (224, 224), [104, 117, 123], False, False)
@@ -40,4 +40,4 @@ class FaceDetector:
         return faces_result
     
     def __del__(self):
-        print ("FaceDetector -> bye")
+        #print ("FaceDetector -> bye")
