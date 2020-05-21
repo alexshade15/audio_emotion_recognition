@@ -32,7 +32,7 @@ class VideoClassifier:
         if video_model_path is not None:
             self.model = load_model(video_model_path)
         else:
-            skips = 17
+            skips = 0
             iters = 5
             bs = 16
             ep = 50
@@ -74,7 +74,7 @@ class VideoClassifier:
             random.shuffle(list_feature_vectors)
         while True:
             labels = []
-            features = np.zeros((batch_size, 2 * self.classes)).astype('float')
+            features = np.zeros((batch_size, 2 * len(self.classes))).astype('float')
             for i in range(c, c + batch_size):
                 audio_path = list_feature_vectors[i].split(".")[0].replace("AFEW/aligned", self.feature_name)
                 label_from_audio = self.ac.clip_classification(audio_path)
@@ -94,7 +94,7 @@ class VideoClassifier:
 
     def train_model(self, train_path, val_path, batch_size, epochs, learning_rate, myopt):
         model = Sequential()
-        model.add(Dense(16, input_shape=(2 * self.classes,), activation='relu'))
+        model.add(Dense(16, input_shape=(2 * len(self.classes),), activation='relu'))
         model.add(Dense(7, activation='softmax'))
 
         if myopt == "Adam":
@@ -137,4 +137,4 @@ class VideoClassifier:
         return model
 
 
-vc = VideoClassifier()
+vc = VideoClassifier(audio_model_path="audio_models/audioModel_0.23446229100227356_epoch50_lr0.001_OptAdam_Model1_Feature384_1.h5")

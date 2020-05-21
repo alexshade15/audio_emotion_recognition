@@ -61,7 +61,7 @@ class AudioClassifier:
             self.feature_number = int(model_path.split("_Feature")[-1].split(".")[0])
         else:
             # fine tuning
-            skips = 17
+            skips = 16
             iters = 5
             bs = 16
             ep = 50
@@ -216,5 +216,5 @@ class AudioClassifier:
 
         return model
 
-
-ac = AudioClassifier()
+if __name__ == "__main__":
+    ac = AudioClassifier()
