@@ -16,6 +16,13 @@ from frames_classifier import FramesClassidier
 from audio_classifier import AudioClassifier
 
 
+def get_feature_name(feature_number):
+    if feature_number == 384:
+        return "audio_feature_IS09_emotion"
+    if feature_number == 1582:
+        return "audio_feature_emobase2010"
+    return None
+
 class VideoClassifier:
 
     def __init__(self, video_model_path=None, audio_model_path="myModel_17.h5",
@@ -24,7 +31,8 @@ class VideoClassifier:
 
         self.fc = FramesClassidier()
         self.ac = AudioClassifier(audio_model_path)
-        self.feature_name = "audio_feature_IS09_emotion"  # temporaneo
+        self.feature_number = int(audio_model_path.split("Feature")[1].split("_")[0])
+        self.feature_name = get_feature_name(self.feature_number)
         self.classes = classes
         self.lb = LabelBinarizer()
         self.lb.fit_transform(np.array(classes))
@@ -39,7 +47,6 @@ class VideoClassifier:
             opts = ["Adam", "SGD"]
             lrs = [0.1, 0.01, 0.001, 0.0001]
             self.model = "X"
-            self.feature_number = 384
             for opt in opts:
                 for lr in lrs:
                     for iteration in range(iters):
@@ -137,4 +144,5 @@ class VideoClassifier:
         return model
 
 
-vc = VideoClassifier(audio_model_path="audio_models/audioModel_0.23446229100227356_epoch50_lr0.001_OptAdam_Model1_Feature384_1.h5")
+vc = VideoClassifier(
+    audio_model_path="audio_models/audioModel_0.23446229100227356_epoch50_lr0.001_OptAdam_Model1_Feature384_1.h5")
