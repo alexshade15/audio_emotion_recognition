@@ -1,3 +1,4 @@
+import sys
 import os
 import glob
 import random
@@ -60,25 +61,43 @@ class AudioClassifier:
             self.feature_number = int(model_path.split("_Feature")[-1].split(".")[0])
         else:
             # fine tuning
+            skips = 0
+            iters = 5
             bs = 16
             ep = 50
             opts = ["Adam", "SGD"]
-            lrs = [0.1, 0.01, 0.001]
+            lrs = [0.0001] #0.1, 0.01, 0.001]
+            models = ["model1", "model2", "model3", "model4"]
             for index, model in enumerate([model1, model2, model3, model4]):
                 for opt in opts:
                     for lr in lrs:
-                        for iteration in range(10):
-                            print("\n\n\n##############################################################################"
-                                  "\n############################### ITERATION " + str(iteration) + "################" +
-                                  "########################\n########################################################" +
-                                  "######################\nepochs:", ep, "batch_size:", bs,
-                                  "\nmodel:", "Model" + str(index + 1),
-                                  "\nlr:", lr, "opt:", opt)
+                        for iteration in range(iters):
+                            self.iteration = iteration
+                            print("\n\n\n##############################################################################\n"
+                                  "############################### ITERATION " + str(iteration+1) + " of " + str(iters) +
+                                  " ############################\n####################################################" +
+                                  " ##########################\nepochs:", ep, "batch_size:", bs,
+                                  "\nmodel:", "Model" + str(index + 1), "in", models,
+                                  "\nopt:", opt, "in", opts,
+                                  "\nlr:", lr, "in", lrs)
+
+                            if skips > 0:
+                                skips -= 1
+                                continue
                             self.model_number = index + 1
                             self.feature_number = get_feature_number(base_path.split("/")[-2])
+
+                            file_name = "audioModel_epoch" + str(ep) + "_lr" + str(lr) + "_Opt" + opt + "_Model" + \
+                            str(index+1) + "_Feature" + str(self.feature_number) + "_" + str(self.iteration) + ".txt"
+                            log_file = open("audio_logs/"+file_name, "w")
+                            old_stdout = sys.stdout
+                            sys.stdout = log_file
+
                             self.model = self.train_model(base_path + "Train", base_path + "Val",
                                                           bs, ep, self.feature_number,
                                                           model(self.feature_number), lr, opt)
+                            sys.stdout = old_stdout
+                            log_file.close()
 
     def clip_classification(self, path_clip_beginngin):
         all_predictions = {}
@@ -174,7 +193,7 @@ class AudioClassifier:
 
         # tb_call_back = TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True)
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
-                                      validation_data=val_gen, validation_steps=(no_of_val_images // batch_size))
+                                      validation_data=val_gen, validation_steps=(no_of_val_images // batch_size), verbose=0)
         #                              callbacks=[tb_call_back])
         # score = model.evaluate_generator(test_gen, no_of_test_images // batch_size)
         print("\n\nTrain Accuracy =", history.history['accuracy'])
@@ -183,10 +202,11 @@ class AudioClassifier:
         print("\nVal Loss =", history.history['val_loss'])
 
         model_name = "audioModel_" + str(history.history['val_accuracy'][-1]) + \
-                     "_epoch" + str(epochs) + "_lr" + str(learning_rate) + "_Opt", myopt + \
-                     "_Model" + str(self.model_number) + "_Feature" + str(self.feature_number) + ".h5"
-        model.save(model_name)
+                     "_epoch" + str(epochs) + "_lr" + str(learning_rate) + "_Opt" + myopt + \
+                     "_Model" + str(self.model_number) + "_Feature" + str(self.feature_number) + "_" + str(self.iteration) + ".h5"
+
         print("\n\nModels saved as:", model_name)
+        model.save("audio_models/" + model_name)
 
         return model
 
