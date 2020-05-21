@@ -1,5 +1,6 @@
 import glob
 import random
+import sys
 import numpy as np
 
 from keras.models import Sequential, load_model
@@ -31,11 +32,41 @@ class VideoClassifier:
         if video_model_path is not None:
             self.model = load_model(video_model_path)
         else:
-            batch_size = 16
-            epeoch = 50
-            lr = 0.01
-            print("epochs:", epeoch, "batch_size:", batch_size, "lr:", lr)
-            self.model = self.train_model(base_path + "Train", base_path + "Val", batch_size, epeoch, lr)
+            skips = 17
+            iters = 5
+            bs = 16
+            ep = 50
+            opts = ["Adam", "SGD"]
+            lrs = [0.1, 0.01, 0.001, 0.0001]
+            self.model = "X"
+            self.feature_number = 384
+            for opt in opts:
+                for lr in lrs:
+                    for iteration in range(iters):
+                        self.iteration = iteration
+                        print(
+                            "\n\n################################################################################\n"
+                            "############################## ITERATION " + str(iteration + 1) + " of " + str(iters) +
+                            " ###########################\n######################################################" +
+                            " ########################\nepochs:", ep, "batch_size:", bs,
+                            "\nmodel:", "Model" + self.model,  # "in", models,
+                            "\nopt:", opt, "in", opts,
+                            "\nlr:", lr, "in", lrs)
+
+                        if skips > 0:
+                            skips -= 1
+                            continue
+
+                        file_name = "videoModel_epoch" + str(ep) + "_lr" + str(lr) + "_Opt" + opt + "_ModelX" + \
+                                    "_Feature" + str(self.feature_number) + "_" + str(self.iteration) + ".txt"
+                        log_file = open("video_logs/" + file_name, "w")
+                        old_stdout = sys.stdout
+                        sys.stdout = log_file
+
+                        self.model = self.train_model(base_path + "Train", base_path + "Val", bs, ep, lr, opt)
+
+                        sys.stdout = old_stdout
+                        log_file.close()
 
     def data_gen(self, list_feature_vectors, batch_size, mode="train"):
         c = 0
@@ -61,13 +92,17 @@ class VideoClassifier:
             # print("\n\n\n#######features, labels: ", features.shape, labels.shape)
             yield features, labels
 
-    def train_model(self, train_path, val_path, batch_size, epochs, learning_rate):
+    def train_model(self, train_path, val_path, batch_size, epochs, learning_rate, myopt):
         model = Sequential()
         model.add(Dense(16, input_shape=(2 * self.classes,), activation='relu'))
         model.add(Dense(7, activation='softmax'))
 
-        model.compile(optimizer=Adam(learning_rate=learning_rate), loss='categorical_crossentropy',
-                      metrics=['accuracy'])
+        if myopt == "Adam":
+            optimizer = Adam(lr=learning_rate)
+        else:
+            optimizer = SGD(lr=learning_rate)
+
+        model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
         model.summary()
 
         train_files = glob.glob(train_path + "/*/*csv")
@@ -83,7 +118,7 @@ class VideoClassifier:
         # tb_call_back = TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True)
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
                                       validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
-                                      workers=0)
+                                      workers=0, verbose=0)
         #                              callbacks=[tb_call_back])
         # score = model.evaluate_generator(test_gen, no_of_test_images // batch_size)
         print("\n\nTrain Accuracy =", history.history['accuracy'])
@@ -91,7 +126,14 @@ class VideoClassifier:
         print("\n\nTrain Loss =", history.history['loss'])
         print("\nVal Loss =", history.history['val_loss'])
 
-        model.save("myVideoModel_" + history.history['val_accuracy'][-1] + ".h5")
+        model_name = "videoModel_" + str(history.history['val_accuracy'][-1]) + "_epoch" + str(epochs) + \
+                     "_lr" + str(learning_rate) + "_Opt" + myopt + "_Model" + str(self.model_number) + \
+                     "_Feature" + str(self.feature_number) + "_" + str(self.iteration) + ".h5"
+
+        print("\n\nModels saved as:", model_name)
+        print("Train:", history.history['accuracy'][-1], "Val:", history.history['val_accuracy'][-1])
+        model.save("video_models/" + model_name)
+
         return model
 
 
