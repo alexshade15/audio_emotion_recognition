@@ -84,6 +84,9 @@ class VideoClassifier:
             features = np.zeros((batch_size, 2 * len(self.classes))).astype('float')
             for i in range(c, c + batch_size):
                 audio_path = list_feature_vectors[i].split(".")[0].replace("AFEW/aligned", self.feature_name)
+                #print("\n\n\n###### audio_path", audio_path, "list_feature_vectors[i].split(\".\")[0].replace(\"AFEW/aligned\", self.feature_name)")
+                #print("list_feature_vectors[i]", list_feature_vectors[i])
+                #print("self.feature_name", self.feature_name)
                 label_from_audio = self.ac.clip_classification(audio_path)
                 graund_truth, label_from_frame = self.fc.make_a_prediction(list_feature_vectors[i])
                 features[i - c] = np.append(self.lb.transform(np.array([label_from_audio])),

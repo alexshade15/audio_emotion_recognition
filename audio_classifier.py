@@ -14,7 +14,7 @@ from sklearn.preprocessing import LabelBinarizer
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
 
 from Dataset.Dataset_Utils.dataset_tools import print_cm
-from test_models_for_audio import model1, model2, model3, model4
+from test_models_for_audio import *
 
 
 def get_feature_number(feature_name):
@@ -58,17 +58,18 @@ class AudioClassifier:
         self.lb.fit_transform(np.array(classes))
         if model_path is not None:
             self.model = load_model(model_path)
-            self.feature_number = int(model_path.split("_Feature")[-1].split(".")[0])
+            self.feature_number = int(model_path.split("_Feature")[-1].split("_")[0])
         else:
             # fine tuning
-            skips = 16
+            skips = 34
             iters = 5
             bs = 16
             ep = 50
             opts = ["Adam", "SGD"]
-            lrs = [0.0001]  # 0.1, 0.01, 0.001]
-            models = ["model1", "model2", "model3", "model4"]
-            for index, model in enumerate([model1, model2, model3, model4]):
+            lrs = [0.001, 0.0001]  # 0.1, 0.01, 0.001, 0.0001]
+            models = [model5, model5_1, model5_2, model6, model6_1, model6_2]
+            models_name = [x.__name__ for x in models]
+            for index, model in enumerate(models):
                 for opt in opts:
                     for lr in lrs:
                         for iteration in range(iters):
@@ -78,14 +79,14 @@ class AudioClassifier:
                                 "############################## ITERATION " + str(iteration + 1) + " of " + str(iters) +
                                 " ###########################\n######################################################" +
                                 " ########################\nepochs:", ep, "batch_size:", bs,
-                                "\nmodel:", "Model" + str(index + 1), "in", models,
-                                "\nopt:", opt, "in", opts,
-                                "\nlr:", lr, "in", lrs)
+                                "\nModel:", models_name[index], "in", models_name,
+                                "\nOpt:", opt, "in", opts,
+                                "\nLr:", lr, "in", lrs)
 
                             if skips > 0:
                                 skips -= 1
                                 continue
-                            self.model_number = index + 1
+                            self.current_model_name = models[index]
                             self.feature_number = get_feature_number(base_path.split("/")[-2])
 
                             file_name = "audioModel_epoch" + str(ep) + "_lr" + str(lr) + "_Opt" + opt + "_Model" + \
@@ -106,16 +107,17 @@ class AudioClassifier:
         for c in self.classes:
             all_predictions[c] = 0
         for feature_vector_path in glob.glob(path_clip_beginngin + "*"):
-            ##print("FEATURE_PATH", feature_vector_path)
+            #print("\n\n\n\n##############\nFEATURE_PATH", feature_vector_path)
             pred, ground_truth = self.test_model(feature_vector_path)
             all_predictions[pred] += 1
         return max(all_predictions.items(), key=operator.itemgetter(1))[0]
 
     def test_model(self, sample_path):
+        #print("self.feature_number:", self.feature_number)
         sample = np.array(from_arff_to_feture(sample_path)).reshape(1, self.feature_number)
         ground_truth = sample_path.split("/")[-2]
-        # #print("\n\n\nSAMPLE_PATH, sample_sape", sample_path, sample.shape)
-        # #print("model_input shape", self.model.layers[0].input_shape)
+        #print("SAMPLE_PATH, sample_shape", sample_path, sample.shape)
+        #print("model input_shape", self.model.layers[0].input_shape)
         prediction = self.model.predict(sample)
         return self.lb.inverse_transform(prediction)[0], ground_truth
 
@@ -208,7 +210,7 @@ class AudioClassifier:
 
         model_name = "audioModel_" + str(history.history['val_accuracy'][-1]) + \
                      "_epoch" + str(epochs) + "_lr" + str(learning_rate) + "_Opt" + myopt + \
-                     "_Model" + str(self.model_number) + "_Feature" + str(self.feature_number) + "_" + str(
+                     "_Model" + str(self.current_model_name) + "_Feature" + str(self.feature_number) + "_" + str(
             self.iteration) + ".h5"
 
         print("\n\nModels saved as:", model_name)
