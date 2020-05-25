@@ -7,7 +7,7 @@ from os.path import basename, exists
 
 from keras.models import Sequential, load_model
 from keras.layers import Dense
-from keras.callbacks import TensorBoard
+from keras.callbacks import TensorBoard, ModelCheckpoint
 from keras.optimizers import Adam, SGD
 
 from sklearn.preprocessing import LabelBinarizer
@@ -58,7 +58,7 @@ class VideoClassifier:
                         self.labels_late_fusion[row[0]] = [row[1], row[2], row[3]]
 
             skips = 0
-            iters = 5
+            iters = 10
             bs = 16
             ep = 50
             opts = ["Adam", "SGD"]
@@ -107,6 +107,8 @@ class VideoClassifier:
         val_files = glob.glob(val_path + "/*/*csv")
 
         my_csv = {}
+        i = 0
+        total = len (train_files + val_files)
         for file in train_files + val_files:
             clip_id = file.split(".")[0]
             audio_path = clip_id.replace("AFEW/aligned", self.feature_name)
@@ -114,11 +116,12 @@ class VideoClassifier:
             graund_truth, label_from_frame = self.fc.predict(file)
             clip_id = basename(clip_id)
             my_csv[clip_id] = [graund_truth, label_from_frame, label_from_audio]
+            print(len(my_csv), "/", total)
 
         with open('lables_late_fusion' + self.feature_name.replace("audio_feature", "") + '.csv', 'w') as f:
             f.write("clip_id, ground_truth, frame_label, audio_label\n")
             for k in my_csv:
-                f.write(str(k) + ", " + str(my_csv[k][0]) + ", " + str(my_csv[k][1]) + ", " + str(my_csv[k][2]) + "\n")
+                f.write(str(k) + "," + str(my_csv[k][0]) + "," + str(my_csv[k][1]) + "," + str(my_csv[k][2]) + "\n")
         return my_csv
 
     def late_data_gen(self, list_feature_vectors, batch_size, mode="train"):
@@ -132,9 +135,20 @@ class VideoClassifier:
                 clip_id = basename(list_feature_vectors[i].split(".")[0])
                 graund_truth, label_from_frame, label_from_audio = self.labels_late_fusion[clip_id]
 
-                # audio_path = list_feature_vectors[i].split(".")[0].replace("AFEW/aligned", self.feature_name)
-                # label_from_audio = self.ac.clip_classification(audio_path)
-                # graund_truth, label_from_frame = self.fc.predict(list_feature_vectors[i])
+                audio_path = list_feature_vectors[i].split(".")[0].replace("AFEW/aligned", self.feature_name)
+                #lba = self.ac.clip_classification(audio_path)
+                #gt, lbf = self.fc.predict(list_feature_vectors[i])
+
+                #if graund_truth == gt and label_from_audio == lba and label_from_frame == lbf:
+                #    print("\nOK")
+                #else:
+                #    if not graund_truth == gt:
+                #        print("gt", graund_truth, gt)
+                #    if not label_from_audio == lba:
+                #        print("lba", label_from_audio, lba)
+                #    if not label_from_frame == lbf:
+                #        print("lbf", label_from_frame, lbf)
+                #    print("##################################")
                 features[i - c] = np.append(self.lb.transform(np.array([label_from_audio])),
                                             self.lb.transform(np.array([label_from_frame])))
                 labels.append(graund_truth)
@@ -171,11 +185,13 @@ class VideoClassifier:
         no_of_training_images = len(train_files)
         no_of_val_images = len(val_files)
 
-        # tb_call_back = TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True)
+        cb = [ModelCheckpoint(filepath="video_models/videoModel_{val_accuracy:.2f}_epoch{epoch:02d}_lr" + \
+                     str(learning_rate) + "_Opt" + myopt + "_Model" + str(self.model_name) + "_Feature" \
+                     + str(self.feature_number) + "_" + str(self.iteration) + ".h5", monitor="val_accuracy")]
+        # cb.append(TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True))
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
                                       validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
-                                      workers=0, verbose=0)
-        #                              callbacks=[tb_call_back])
+                                      workers=0, verbose=1, callbacks=cb)
         # score = model.evaluate_generator(test_gen, no_of_test_images // batch_size)
         print("\n\nTrain Accuracy =", history.history['accuracy'])
         print("\nVal Accuracy =", history.history['val_accuracy'])
@@ -195,7 +211,7 @@ class VideoClassifier:
     def early_training(self):
         # inquadrare l'architettura video
         # rimuovere dall'architettura video i layers di classificazione, creando un modello in grado di generare feature
-        # creare una nuova architettura che utilizza le feature video più quelle audio per classificare
+        # creare una nuova architettura che utilizza le feature video piu' quelle audio per classificare
         # classiifcazione su l'intero video o su spezzoni? #SPEZZONI: lunghezza seq video compatibile con window audio
         # AUG mixando video e audio
         pass
@@ -238,6 +254,6 @@ class VideoClassifier:
                 print(elem)
             print("\n\n")
 
-
+print("START")
 vc = VideoClassifier(
     audio_model_path="audio_models/audioModel_0.23446229100227356_epoch50_lr0.001_OptAdam_Model1_Feature384_1.h5")

@@ -8,7 +8,7 @@ import numpy as np
 from keras.models import Sequential, load_model
 from keras.layers import Dropout, Dense
 from keras.optimizers import Adam, SGD
-from keras.callbacks import TensorBoard
+from keras.callbacks import TensorBoard, ModelCheckpoint
 
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
@@ -61,12 +61,12 @@ class AudioClassifier:
             self.feature_number = int(model_path.split("_Feature")[-1].split("_")[0])
         else:
             # fine tuning
-            skips = 34
+            skips = 0
             iters = 5
             bs = 16
             ep = 50
             opts = ["Adam", "SGD"]
-            lrs = [0.001, 0.0001]  # 0.1, 0.01, 0.001, 0.0001]
+            lrs = [0.01, 0.001, 0.0001]  # 0.1, 0.01, 0.001, 0.0001]
             models = [model5, model5_1, model5_2, model6, model6_1, model6_2]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
@@ -199,19 +199,21 @@ class AudioClassifier:
         no_of_val_images = len(val_files)
 
         # tb_call_back = TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True)
+        cb = ModelCheckpoint(filepath="audio_models/audioModel_{val_accuracy:.2f}_epoch{epoch:02d}_lr" + \
+                     str(learning_rate) + "_Opt" + myopt + "_Model" + str(self.current_model_name) + "_Feature" \
+                     + str(self.feature_number) + "_" + str(self.iteration) + ".h5", monitor="val_accuracy")
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
                                       validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
-                                      verbose=0)  # callbacks=[tb_call_back])
+                                      verbose=0, callbacks=[cb])
         # score = model.evaluate_generator(test_gen, no_of_test_images // batch_size)
         print("\n\nTrain Accuracy =", history.history['accuracy'])
         print("\nVal Accuracy =", history.history['val_accuracy'])
         print("\n\nTrain Loss =", history.history['loss'])
         print("\nVal Loss =", history.history['val_loss'])
 
-        model_name = "audioModel_" + str(history.history['val_accuracy'][-1]) + \
-                     "_epoch" + str(epochs) + "_lr" + str(learning_rate) + "_Opt" + myopt + \
-                     "_Model" + str(self.current_model_name) + "_Feature" + str(self.feature_number) + "_" + str(
-            self.iteration) + ".h5"
+        model_name = "audioModel_" + str(history.history['val_accuracy'][-1]) + "_epoch" + str(epochs) + \
+                     "_lr" + str(learning_rate) + "_Opt" + myopt + "_Model" + str(self.current_model_name) + \
+                     "_Feature" + str(self.feature_number) + "_" + str(self.iteration) + ".h5"
 
         print("\n\nModels saved as:", model_name)
         model.save("audio_models/" + model_name)
