@@ -17,7 +17,7 @@ class FramesClassidier:
         self.model = SharmaNet(Input(shape=(time_step, 224, 224, 3)), classification=True, weights='afew')
         self.model.load_weights(weights_path)
 
-    def make_a_prediction(self, path):
+    def predict(self, path):
         test_gen = DataGenerator(path, '', 1, 31, NoAug(), split_video_len=1, max_invalid=12, test=True)
         inference = Inference(model=self.model, custom_inference=True, time_step=50)
         _clear_past_predictions(inference)
