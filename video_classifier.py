@@ -46,7 +46,7 @@ class VideoClassifier:
             ep = 50
             opts = ["Adam", "SGD"]
             lrs = [0.1, 0.01, 0.001, 0.0001]
-            self.model = "X"
+            self.model_name = "X"
             for opt in opts:
                 for lr in lrs:
                     for iteration in range(iters):
@@ -56,7 +56,7 @@ class VideoClassifier:
                             "############################## ITERATION " + str(iteration + 1) + " of " + str(iters) +
                             " ###########################\n######################################################" +
                             " ########################\nepochs:", ep, "batch_size:", bs,
-                            "\nmodel:", "Model" + self.model,  # "in", models,
+                            "\nmodel:", "Model" + self.model_name,  # "in", models,
                             "\nopt:", opt, "in", opts,
                             "\nlr:", lr, "in", lrs)
 
@@ -137,7 +137,7 @@ class VideoClassifier:
         print("\nVal Loss =", history.history['val_loss'])
 
         model_name = "videoModel_" + str(history.history['val_accuracy'][-1]) + "_epoch" + str(epochs) + \
-                     "_lr" + str(learning_rate) + "_Opt" + myopt + "_Model" + str(self.model_number) + \
+                     "_lr" + str(learning_rate) + "_Opt" + myopt + "_Model" + str(self.model_name) + \
                      "_Feature" + str(self.feature_number) + "_" + str(self.iteration) + ".h5"
 
         print("\n\nModels saved as:", model_name)
