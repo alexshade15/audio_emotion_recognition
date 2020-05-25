@@ -46,7 +46,9 @@ class VideoClassifier:
 
             if train_mode == "late_fusion" and \
                     not exists('lables_late_fusion' + self.feature_name.replace("audio_feature", "") + '.csv'):
+                print("\n##### GENERATING CSV FOR LATE FUSIUON... #####")
                 self.labels_late_fusion = self.generate_data_for_late_fusion(base_path)
+                print("\n##### CSV GENERATED! #####")
             else:
                 self.labels_late_fusion = {}
                 with open('lables_late_fusion' + self.feature_name.replace("audio_feature", "") + '.csv', 'r') as f:
