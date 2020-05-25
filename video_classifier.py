@@ -1,6 +1,5 @@
 import glob
 import random
-import sys
 import csv
 import numpy as np
 from os.path import basename, exists
@@ -16,6 +15,7 @@ from sklearn.metrics import confusion_matrix, accuracy_score, classification_rep
 from Dataset.Dataset_Utils.dataset_tools import print_cm
 from frames_classifier import FramesClassidier
 from audio_classifier import AudioClassifier
+from test_models import *
 
 
 def get_feature_name(feature_number):
@@ -63,38 +63,43 @@ class VideoClassifier:
             ep = 50
             opts = ["Adam", "SGD"]
             lrs = [0.1, 0.01, 0.001, 0.0001]
-            self.model_name = "X"
-            for opt in opts:
-                for lr in lrs:
-                    for iteration in range(iters):
-                        self.iteration = iteration
-                        print(
-                            "\n\n################################################################################\n"
-                            "############################## ITERATION " + str(iteration + 1) + " of " + str(iters) +
-                            " ###########################\n######################################################" +
-                            " ########################\nepochs:", ep, "batch_size:", bs,
-                            "\nmodel:", "Model" + self.model_name,  # "in", models,
-                            "\nopt:", opt, "in", opts,
-                            "\nlr:", lr, "in", lrs)
+            models = [a_model5, a_model5_1, a_model5_2, a_model6, a_model6_1, a_model6_2]
+            models_name = [x.__name__ for x in models]
+            for index, model in enumerate(models):
+                for opt in opts:
+                    for lr in lrs:
+                        for iteration in range(iters):
+                            self.iteration = iteration
+                            print(
+                                "\n\n################################################################################\n"
+                                "############################## ITERATION " + str(iteration + 1) + " of " + str(iters) +
+                                " ###########################\n######################################################" +
+                                " ########################\nepochs:", ep, "batch_size:", bs,
+                                "\nmodel:", models_name[index], "in", models_name,
+                                "\nopt:", opt, "in", opts,
+                                "\nlr:", lr, "in", lrs)
 
-                        if skips > 0:
-                            skips -= 1
-                            continue
+                            if skips > 0:
+                                skips -= 1
+                                continue
 
-                        file_name = "videoModel_epoch" + str(ep) + "_lr" + str(lr) + "_Opt" + opt + "_ModelX" + \
-                                    "_Feature" + str(self.feature_number) + "_" + str(self.iteration) + ".txt"
-                        # log_file = open("video_logs/" + file_name, "w")
-                        # old_stdout = sys.stdout
-                        # sys.stdout = log_file
-                        if train_mode == "late_fusion":
-                            self.model = self.late_training(base_path + "Train", base_path + "Val", bs, ep, lr, opt)
-                        elif train_mode == "early_fusion":
-                            self.model = self.training(base_path + "Train", base_path + "Val", bs, ep, lr, opt)
-                        elif train_mode == "train_level":
-                            self.model = self.training(base_path + "Train", base_path + "Val", bs, ep, lr, opt)
+                            self.current_model_name = models[index]
 
-                        # sys.stdout = old_stdout
-                        # log_file.close()
+                            # file_name = "videoModel_epoch" + str(ep) + "_lr" + str(lr) + "_Opt" + opt + "_" + \
+                            #             models[index] + "_Feature" + str(self.feature_number) + "_" + str(
+                            #             self.iteration) + ".txt"
+                            # log_file = open("video_logs/" + file_name, "w")
+                            # old_stdout = sys.stdout
+                            # sys.stdout = log_file
+                            if train_mode == "late_fusion":
+                                self.model = self.late_training(base_path + "Train", base_path + "Val", bs, ep, lr, opt)
+                            elif train_mode == "early_fusion":
+                                self.model = self.training(base_path + "Train", base_path + "Val", bs, ep, lr, opt)
+                            elif train_mode == "train_level":
+                                self.model = self.training(base_path + "Train", base_path + "Val", bs, ep, lr, opt)
+
+                            # sys.stdout = old_stdout
+                            # log_file.close()
 
     def generate_data_for_late_fusion(self, base_path):
         train_path = base_path + "Train"
@@ -108,7 +113,7 @@ class VideoClassifier:
 
         my_csv = {}
         i = 0
-        total = len (train_files + val_files)
+        total = len(train_files + val_files)
         for file in train_files + val_files:
             clip_id = file.split(".")[0]
             audio_path = clip_id.replace("AFEW/aligned", self.feature_name)
@@ -134,21 +139,6 @@ class VideoClassifier:
             for i in range(c, c + batch_size):
                 clip_id = basename(list_feature_vectors[i].split(".")[0])
                 graund_truth, label_from_frame, label_from_audio = self.labels_late_fusion[clip_id]
-
-                audio_path = list_feature_vectors[i].split(".")[0].replace("AFEW/aligned", self.feature_name)
-                #lba = self.ac.clip_classification(audio_path)
-                #gt, lbf = self.fc.predict(list_feature_vectors[i])
-
-                #if graund_truth == gt and label_from_audio == lba and label_from_frame == lbf:
-                #    print("\nOK")
-                #else:
-                #    if not graund_truth == gt:
-                #        print("gt", graund_truth, gt)
-                #    if not label_from_audio == lba:
-                #        print("lba", label_from_audio, lba)
-                #    if not label_from_frame == lbf:
-                #        print("lbf", label_from_frame, lbf)
-                #    print("##################################")
                 features[i - c] = np.append(self.lb.transform(np.array([label_from_audio])),
                                             self.lb.transform(np.array([label_from_frame])))
                 labels.append(graund_truth)
@@ -162,11 +152,7 @@ class VideoClassifier:
             # print("\n\n\n#######features, labels: ", features.shape, labels.shape)
             yield features, labels
 
-    def late_training(self, train_path, val_path, batch_size, epochs, learning_rate, myopt):
-        model = Sequential()
-        model.add(Dense(16, input_shape=(2 * len(self.classes),), activation='relu'))
-        model.add(Dense(7, activation='softmax'))
-
+    def late_training(self, train_path, val_path, batch_size, epochs, learning_rate, myopt, model):
         if myopt == "Adam":
             optimizer = Adam(lr=learning_rate)
         else:
@@ -185,9 +171,9 @@ class VideoClassifier:
         no_of_training_images = len(train_files)
         no_of_val_images = len(val_files)
 
-        cb = [ModelCheckpoint(filepath="video_models/videoModel_{val_accuracy:.2f}_epoch{epoch:02d}_lr" + \
-                     str(learning_rate) + "_Opt" + myopt + "_Model" + str(self.model_name) + "_Feature" \
-                     + str(self.feature_number) + "_" + str(self.iteration) + ".h5", monitor="val_accuracy")]
+        cb = [ModelCheckpoint(filepath="video_models/videoModel_{val_accuracy:.2f}_epoch{epoch:02d}_lr" + str(
+            learning_rate) + "_Opt" + myopt + "_Model" + str(self.model_name) + "_Feature" + str(
+            self.feature_number) + "_" + str(self.iteration) + ".h5", monitor="val_accuracy")]
         # cb.append(TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True))
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
                                       validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
@@ -254,6 +240,6 @@ class VideoClassifier:
                 print(elem)
             print("\n\n")
 
-print("START")
+
 vc = VideoClassifier(
     audio_model_path="audio_models/audioModel_0.23446229100227356_epoch50_lr0.001_OptAdam_Model1_Feature384_1.h5")

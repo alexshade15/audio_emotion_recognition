@@ -5,8 +5,7 @@ import random
 import operator
 import numpy as np
 
-from keras.models import Sequential, load_model
-from keras.layers import Dropout, Dense
+from keras.models import load_model
 from keras.optimizers import Adam, SGD
 from keras.callbacks import TensorBoard, ModelCheckpoint
 
@@ -14,7 +13,7 @@ from sklearn.preprocessing import LabelBinarizer
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
 
 from Dataset.Dataset_Utils.dataset_tools import print_cm
-from test_models_for_audio import *
+from test_models import *
 
 
 def get_feature_number(feature_name):
@@ -67,7 +66,7 @@ class AudioClassifier:
             ep = 50
             opts = ["Adam", "SGD"]
             lrs = [0.01, 0.001, 0.0001]  # 0.1, 0.01, 0.001, 0.0001]
-            models = [model5, model5_1, model5_2, model6, model6_1, model6_2]
+            models = [a_model5, a_model5_1, a_model5_2, a_model6, a_model6_1, a_model6_2]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
                 for opt in opts:
@@ -86,19 +85,18 @@ class AudioClassifier:
                             if skips > 0:
                                 skips -= 1
                                 continue
-                            self.current_model_name = models[index]
+                            self.current_model_name = models_name[index]
                             self.feature_number = get_feature_number(base_path.split("/")[-2])
 
-                            file_name = "audioModel_epoch" + str(ep) + "_lr" + str(lr) + "_Opt" + opt + "_Model" + \
-                                        str(index + 1) + "_Feature" + str(self.feature_number) + "_" + str(
+                            file_name = "audioModel_epoch" + str(ep) + "_lr" + str(lr) + "_Opt" + opt + "_" + \
+                                        models_name[index] + "_Feature" + str(self.feature_number) + "_" + str(
                                 self.iteration) + ".txt"
                             log_file = open("audio_logs/" + file_name, "w")
                             old_stdout = sys.stdout
                             sys.stdout = log_file
 
-                            self.model = self.train_model(base_path + "Train", base_path + "Val",
-                                                          bs, ep, self.feature_number,
-                                                          model(self.feature_number), lr, opt)
+                            self.model = self.train_model(base_path + "Train", base_path + "Val", bs, ep, lr, opt,
+                                                          model(self.feature_number))
                             sys.stdout = old_stdout
                             log_file.close()
 
@@ -170,38 +168,26 @@ class AudioClassifier:
             labels = self.lb.transform(np.array(labels))
             yield features, labels
 
-    def train_model(self, train_path, val_path, batch_size, epochs, feature_number=1582,
-                    mymodel=None, learning_rate=0.1, myopt="Adam"):
-        if mymodel is None:
-            model = Sequential()
-            model.add(Dense(16, input_shape=(feature_number,), activation='relu'))
-            # model.add(Dropout(0.5))
-            model.add(Dense(32, activation='relu'))
-            model.add(Dense(64, activation='relu'))
-            # model.add(Dropout(0.5))
-            model.add(Dense(7, activation='softmax'))
-            optimizer = Adam(learning_rate=learning_rate)
+    def train_model(self, train_path, val_path, batch_size, epochs, learning_rate=0.1, myopt="Adam", model=None):
+        if myopt == "Adam":
+            optimizer = Adam(lr=learning_rate)
         else:
-            model = mymodel
-            if myopt == "Adam":
-                optimizer = Adam(lr=learning_rate)
-            else:
-                optimizer = SGD(lr=learning_rate)
+            optimizer = SGD(lr=learning_rate)
 
         model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
         model.summary()
 
         train_files = get_all_arff(train_path)
         val_files = get_all_arff(val_path)
-        train_gen = self.data_gen(train_path, train_files, batch_size, feature_number)
-        val_gen = self.data_gen(val_path, val_files, batch_size, feature_number)
+        train_gen = self.data_gen(train_path, train_files, batch_size, self.feature_number)
+        val_gen = self.data_gen(val_path, val_files, batch_size, self.feature_number)
         no_of_training_images = len(train_files)
         no_of_val_images = len(val_files)
 
-        # tb_call_back = TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True)
-        cb = ModelCheckpoint(filepath="audio_models/audioModel_{val_accuracy:.2f}_epoch{epoch:02d}_lr" + \
-                     str(learning_rate) + "_Opt" + myopt + "_Model" + str(self.current_model_name) + "_Feature" \
-                     + str(self.feature_number) + "_" + str(self.iteration) + ".h5", monitor="val_accuracy")
+        cb = [ModelCheckpoint(filepath="audio_models/audioModel_{val_accuracy:.2f}_epoch{epoch:02d}_lr" + str(
+            learning_rate) + "_Opt" + myopt + "_Model" + str(self.current_model_name) + "_Feature" + str(
+            self.feature_number) + "_" + str(self.iteration) + ".h5", monitor="val_accuracy")]
+        # cb.append(TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True))
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
                                       validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
                                       verbose=0, callbacks=[cb])
