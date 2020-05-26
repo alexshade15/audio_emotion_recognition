@@ -184,13 +184,13 @@ class AudioClassifier:
         no_of_training_images = len(train_files)
         no_of_val_images = len(val_files)
 
-        cb = [ModelCheckpoint(filepath="audio_models/audioModel_{val_accuracy:.2f}_epoch{epoch:02d}_lr" + str(
+        cb = [ModelCheckpoint(filepath="audio_models/audioModel_{val_accuracy:.4f}_epoch{epoch:02d}_lr" + str(
             learning_rate) + "_Opt" + myopt + "_Model" + str(self.current_model_name) + "_Feature" + str(
             self.feature_number) + "_" + str(self.iteration) + ".h5", monitor="val_accuracy")]
         # cb.append(TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True))
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
                                       validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
-                                      verbose=0, callbacks=[cb])
+                                      verbose=0, callbacks=cb)
         # score = model.evaluate_generator(test_gen, no_of_test_images // batch_size)
         print("\n\nTrain Accuracy =", history.history['accuracy'])
         print("\nVal Accuracy =", history.history['val_accuracy'])

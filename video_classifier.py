@@ -1,3 +1,4 @@
+
 import glob
 import random
 import csv
@@ -63,7 +64,7 @@ class VideoClassifier:
             ep = 50
             opts = ["Adam", "SGD"]
             lrs = [0.1, 0.01, 0.001, 0.0001]
-            models = [a_model5, a_model5_1, a_model5_2, a_model6, a_model6_1, a_model6_2]
+            models = [a_model5_1, a_model5_2, a_model6, a_model6_1, a_model6_2]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
                 for opt in opts:
@@ -83,7 +84,7 @@ class VideoClassifier:
                                 skips -= 1
                                 continue
 
-                            self.current_model_name = models[index]
+                            self.current_model_name = models_name[index]
 
                             # file_name = "videoModel_epoch" + str(ep) + "_lr" + str(lr) + "_Opt" + opt + "_" + \
                             #             models[index] + "_Feature" + str(self.feature_number) + "_" + str(
@@ -92,7 +93,7 @@ class VideoClassifier:
                             # old_stdout = sys.stdout
                             # sys.stdout = log_file
                             if train_mode == "late_fusion":
-                                self.model = self.late_training(base_path + "Train", base_path + "Val", bs, ep, lr, opt)
+                                self.model = self.late_training(base_path + "Train", base_path + "Val", bs, ep, lr, opt, model(14))
                             elif train_mode == "early_fusion":
                                 self.model = self.training(base_path + "Train", base_path + "Val", bs, ep, lr, opt)
                             elif train_mode == "train_level":
@@ -171,9 +172,9 @@ class VideoClassifier:
         no_of_training_images = len(train_files)
         no_of_val_images = len(val_files)
 
-        cb = [ModelCheckpoint(filepath="video_models/videoModel_{val_accuracy:.2f}_epoch{epoch:02d}_lr" + str(
-            learning_rate) + "_Opt" + myopt + "_Model" + str(self.model_name) + "_Feature" + str(
-            self.feature_number) + "_" + str(self.iteration) + ".h5", monitor="val_accuracy")]
+        cb = [ModelCheckpoint(filepath=str("video_models/videoModel_{val_accuracy:.4f}_epoch{epoch:02d}_lr" + str(
+            learning_rate) + "_Opt" + myopt + "_" + str(self.current_model_name) + "_Feature" + str(
+            self.feature_number) + "_" + str(self.iteration) + ".h5"), monitor="val_accuracy")]
         # cb.append(TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True))
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
                                       validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
@@ -185,7 +186,7 @@ class VideoClassifier:
         print("\nVal Loss =", history.history['val_loss'])
 
         model_name = "videoModel_" + str(history.history['val_accuracy'][-1]) + "_epoch" + str(epochs) + \
-                     "_lr" + str(learning_rate) + "_Opt" + myopt + "_Model" + str(self.model_name) + \
+                     "_lr" + str(learning_rate) + "_Opt" + myopt + "_Model" + str(self.current_model_name) + \
                      "_Feature" + str(self.feature_number) + "_" + str(self.iteration) + ".h5"
 
         print("\n\nModels saved as:", model_name)
