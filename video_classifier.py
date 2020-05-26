@@ -62,7 +62,7 @@ class VideoClassifier:
             ep = 50
             opts = ["Adam", "SGD"]
             lrs = [0.1, 0.01, 0.001, 0.0001]
-            models = [v_model_X, a_model5, a_model5_1, a_model5_2, a_model6, a_model6_1, a_model6_2]
+            models = [v_model_X, a_model5, a_model5_1, a_model5_2, a_model5_3, a_model6, a_model6_1, a_model6_2]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
                 for opt in opts:
@@ -242,4 +242,5 @@ class VideoClassifier:
 
 
 vc = VideoClassifier(
-    audio_model_path="audio_models/audioModel_0.23446229100227356_epoch50_lr0.001_OptAdam_Model1_Feature384_1.h5")
+   audio_model_path="audioModel_0.2491_epoch37_lr0.0001_OptAdam_Modela_model5_2_Feature384_4.h5")
+   # audio_model_path="audio_models/audioModel_0.23446229100227356_epoch50_lr0.001_OptAdam_Model1_Feature384_1.h5")
