@@ -184,9 +184,11 @@ class AudioClassifier:
         no_of_training_images = len(train_files)
         no_of_val_images = len(val_files)
 
-        cb = [ModelCheckpoint(filepath="audio_models/audioModel_{val_accuracy:.4f}_epoch{epoch:02d}_lr" + str(
-            learning_rate) + "_Opt" + myopt + "_Model" + str(self.current_model_name) + "_Feature" + str(
-            self.feature_number) + "_" + str(self.iteration) + ".h5", monitor="val_accuracy")]
+        model_name = "_lr" + str(learning_rate) + "_Opt" + myopt + "_Model" + str(self.current_model_name) + \
+                     "_Feature" + str(self.feature_number) + "_" + str(self.iteration) + ".h5"
+
+        cb = [ModelCheckpoint(filepath="audio_models/audioModel_{val_accuracy:.4f}_epoch{epoch:02d}" + model_name,
+                              monitor="val_accuracy")]
         # cb.append(TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True))
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
                                       validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
@@ -197,9 +199,7 @@ class AudioClassifier:
         print("\n\nTrain Loss =", history.history['loss'])
         print("\nVal Loss =", history.history['val_loss'])
 
-        model_name = "audioModel_" + str(history.history['val_accuracy'][-1]) + "_epoch" + str(epochs) + \
-                     "_lr" + str(learning_rate) + "_Opt" + myopt + "_Model" + str(self.current_model_name) + \
-                     "_Feature" + str(self.feature_number) + "_" + str(self.iteration) + ".h5"
+        model_name = "audioModel_" + str(history.history['val_accuracy'][-1]) + "_epoch" + str(epochs) + model_name
 
         print("\n\nModels saved as:", model_name)
         model.save("audio_models/" + model_name)
