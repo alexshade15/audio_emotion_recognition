@@ -84,12 +84,13 @@ class VideoClassifier:
 
                             self.current_model_name = models_name[index]
 
-                            # file_name = "videoModel_epoch" + str(ep) + "_lr" + str(lr) + "_Opt" + opt + "_" + \
-                            #             models[index] + "_Feature" + str(self.feature_number) + "_" + str(
-                            #             self.iteration) + ".txt"
-                            # log_file = open("video_logs/" + file_name, "w")
-                            # old_stdout = sys.stdout
-                            # sys.stdout = log_file
+                            file_name = "videoModel_epoch" + str(ep) + "_lr" + str(lr) + "_Opt" + opt + "_" + \
+                                        models_name[index] + "_Feature" + str(self.feature_number) + "_" + str(
+                                        self.iteration) + ".txt"
+                            log_file = open("video_logs/" + file_name, "w")
+                            old_stdout = sys.stdout
+                            sys.stdout = log_file
+
                             if train_mode == "late_fusion":
                                 self.model = self.late_training(base_path + "Train", base_path + "Val", bs, ep, lr, opt,
                                                                 model(14))
@@ -98,8 +99,8 @@ class VideoClassifier:
                             elif train_mode == "train_level":
                                 self.model = self.training(base_path + "Train", base_path + "Val", bs, ep, lr, opt)
 
-                            # sys.stdout = old_stdout
-                            # log_file.close()
+                            sys.stdout = old_stdout
+                            log_file.close()
 
     def generate_data_for_late_fusion(self, base_path):
         train_path = base_path + "Train"
@@ -179,7 +180,7 @@ class VideoClassifier:
         # cb.append(TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True))
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
                                       validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
-                                      workers=0, verbose=1, callbacks=cb)
+                                      workers=0, verbose=0, callbacks=cb)
         # score = model.evaluate_generator(test_gen, no_of_test_images // batch_size)
         print("\n\nTrain Accuracy =", history.history['accuracy'])
         print("\nVal Accuracy =", history.history['val_accuracy'])
