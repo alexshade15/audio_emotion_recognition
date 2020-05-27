@@ -85,9 +85,10 @@ def from_clips_to_feature(cfg_file="emobase2010.conf", frame_size=300):
 
 
 if __name__ == "__main__":
-    from_wav_to_clips(sys.argv[1])
+    fs = int(sys.argv[1])
+    from_wav_to_clips(fs)
     if sys.argv[2] == "e":
         cfg = "emobase2010.conf"
     else:
         cfg = "IS09_emotion.conf"
-    from_clips_to_feature(cfg, sys.argv[1])
+    from_clips_to_feature(cfg, fs)
