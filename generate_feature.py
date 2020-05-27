@@ -5,10 +5,9 @@ import sys
 
 def to_milliseconds(t_stamp):
     t = t_stamp.split(":")
-    # h = int(t[0])
     m = int(t[1])
     s_ms = t[2].split(".")
-    return int(s_ms[1]) * 10 + int(s_ms[0]) * 1000 + m * 6000  # + h * 360000
+    return int(s_ms[1]) * 10 + int(s_ms[0]) * 1000 + m * 6000
 
 
 def to_t_stamp(milliseconds):
@@ -73,9 +72,9 @@ def from_wav_to_clips(frame_size=300):
         subprocess.call(cmd, shell=True)
 
 
-def from_clips_to_feature(cfg_file="emobase2010.conf"):
+def from_clips_to_feature(cfg_file="emobase2010.conf", frame_size=300):
     base_dir = "/user/vlongobardi/temp_clips/"
-    feature_dir = "/user/vlongobardi/" + cfg_file.split(".")[0] + "/"
+    feature_dir = "/user/vlongobardi/" + cfg_file.split(".")[0] + "_" + str(frame_size) + "/"
     config_path = "/user/vlongobardi/opensmile-2.3.0/config/" + cfg_file
     # SMILExtract -C opensmile-2.3.0/config/emobase2010_2.conf -I test.wav -O output.arff -instname input
     for file_path in generate_files(base_dir):
@@ -91,4 +90,4 @@ if __name__ == "__main__":
         cfg = "emobase2010.conf"
     else:
         cfg = "IS09_emotion.conf"
-    from_clips_to_feature(cfg)
+    from_clips_to_feature(cfg, sys.argv[1])
