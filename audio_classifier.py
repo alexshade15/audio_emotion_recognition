@@ -17,9 +17,9 @@ from test_models import *
 
 
 def get_feature_number(feature_name):
-    if feature_name == "audio_feature_IS09_emotion":
+    if "IS09_emotion" in feature_name:
         return 384
-    if feature_name == "audio_feature_emobase2010":
+    if "emobase2010" in feature_name:
         return 1582
     return None
 
@@ -50,7 +50,7 @@ def get_all_arff(path):
 class AudioClassifier:
 
     def __init__(self, model_path=None, classes=["Angry", "Disgust", "Fear", "Happy", "Neutral", "Sad", "Surprise"],
-                 base_path="/user/vlongobardi/audio_feature_IS09_emotion/"):
+                 base_path="/user/vlongobardi/IS09_emotion/"):
 
         self.classes = classes
         self.lb = LabelBinarizer()
@@ -66,7 +66,7 @@ class AudioClassifier:
             ep = 50
             opts = ["Adam", "SGD"]
             lrs = [0.01, 0.001, 0.0001]  # 0.1, 0.01, 0.001, 0.0001]
-            models = [a_model5, a_model5_1, a_model5_2, a_model6, a_model6_1, a_model6_2]
+            models = [a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3, a_model6, a_model6_1, a_model6_2]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
                 for opt in opts:
@@ -165,7 +165,13 @@ class AudioClassifier:
                 random.shuffle(list_feature_vectors)
                 if mode == "eval":
                     break
-            labels = self.lb.transform(np.array(labels))
+            try:
+                labels = self.lb.transform(np.array(labels))
+            except:
+                print("\n\n#############", labels)
+                print("\n\n#############", np.array(labels))
+                print("\n\nc:", c, "\nist_feature_vectors[i]:", list_feature_vectors[c:c + batch_size])
+                raise Exception('\nLabels!!')
             yield features, labels
 
     def train_model(self, train_path, val_path, batch_size, epochs, learning_rate=0.1, myopt="Adam", model=None):
@@ -208,4 +214,4 @@ class AudioClassifier:
 
 
 if __name__ == "__main__":
-    ac = AudioClassifier()
+    ac = AudioClassifier(base_path="/user/vlongobardi/emobase2010_300/")

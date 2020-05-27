@@ -1,5 +1,6 @@
 import subprocess
 from os import listdir, path
+import sys
 
 
 def to_milliseconds(t_stamp):
@@ -33,14 +34,7 @@ def generate_files(base_dir):
                     yield dataset + "/" + emotion + "/" + video.split(".")[0]
 
 
-def get_avi_info():
-    base_dir = "/user/vlongobardi/AFEW/videos/"
-    for dataset, emotion, name in generate_files(base_dir):
-        command = "ffmpeg -i " + base_dir + dataset + "/" + emotion + "/" + name + ".avi"
-        subprocess.call(command, shell=True)
-        #print(base_dir + dataset + "/" + emotion + "/" + name, "\n\n\n")
-
-
+# ffmpeg -i /Val/Disgust/000738334.avi -ab 128k -ac 2 -ar 48000 -vn temp_wav/Val/Disgust/000738334.avi
 def from_avi_to_wav():
     avi_dir = "/user/vlongobardi/AFEW/videos/"
     wav_dir = "/user/vlongobardi/temp_wav/"
@@ -52,11 +46,10 @@ def from_avi_to_wav():
 
 # ffmpeg -y -i ~/AFEW/videos/Train/Angry/000046280.avi 2>&1 | grep Duration | awk '{#print $2}' | tr -d ,
 # ffmpeg -ss 0.3 -i ~/AFEW/videos/Train/Angry/000046280.avi -t 0.3 -ab 128k -ac 2 -ar 48000 -vn 000046280_0.wav
-def from_wav_to_clips():
+def from_wav_to_clips(frame_size=300):
     wav_dir = "/user/vlongobardi/temp_wav/"
     clip_dir = "/user/vlongobardi/temp_clips/"
-    frame_size = 300
-    frame_step = 150
+    frame_step = frame_size // 2
     for file_path in generate_files(wav_dir):
         cmd = "ffmpeg -y -i " + wav_dir + file_path + ".wav temp_output.wav"
         bash_output = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -66,36 +59,36 @@ def from_wav_to_clips():
         d0 = frame_step
         cmd = "ffmpeg -y -i " + wav_dir + file_path + ".wav -t " + to_t_stamp(frame_size) + \
               " -ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i) + ".wav"
-        # #print("\n\n", cmd)
         subprocess.call(cmd, shell=True)
-        # if duration == 480:
-        #     continue
-
         while d0 < (duration - frame_size):
-            # if duration in {550, 600, 620}:
-            #     d0 += frame_step
-            #     break
             i += 1
-            cmd = "ffmpeg -y -ss " + to_t_stamp(d0) + " -i " + wav_dir + file_path + ".wav -t " + to_t_stamp(frame_size) \
-                  + " -ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i) + ".wav"
-            # #print("\n\n", cmd)
-            subprocess.call(cmd, shell=True)
-            d0 += frame_step
-        if d0 < duration:
-            cmd = "ffmpeg -y -ss " + to_t_stamp(duration - frame_size) + " -i " + wav_dir + file_path + ".wav -t " + \
-                  to_t_stamp(frame_size) + " -ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i + 1) \
-                  + ".wav"
-            # #print("\n\n", cmd)
-            subprocess.call(cmd, shell=True)
+            cmd = "ffmpeg -y -ss " + to_t_stamp(d0) + " -i " + wav_dir + file_path + ".wav -t " + to_t_stamp(
+                frame_size) + " -ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i) + ".wav"
+        subprocess.call(cmd, shell=True)
+        d0 += frame_step
+    if d0 < duration:
+        cmd = "ffmpeg -y -ss " + to_t_stamp(
+            duration - frame_size) + " -i " + wav_dir + file_path + ".wav -t " + to_t_stamp(
+            frame_size) + " -ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i + 1) + ".wav"
+        subprocess.call(cmd, shell=True)
 
 
 def from_clips_to_feature(cfg_file="emobase2010.conf"):
     base_dir = "/user/vlongobardi/temp_clips/"
-    feature_dir = "/user/vlongobardi/audio_feature_" + cfg_file.split(".")[0] + "/"
+    feature_dir = "/user/vlongobardi/" + cfg_file.split(".")[0] + "/"
     config_path = "/user/vlongobardi/opensmile-2.3.0/config/" + cfg_file
     # SMILExtract -C opensmile-2.3.0/config/emobase2010_2.conf -I test.wav -O output.arff -instname input
     for file_path in generate_files(base_dir):
         cmd = "SMILExtract -C " + config_path + " -I " + base_dir + file_path + ".wav -O " + feature_dir + file_path + \
               ".arff"  # -instname " + name
         subprocess.call(cmd, shell=True)
-        #print("\n\n")
+        # print("\n\n")
+
+
+if __name__ == "__main__":
+    from_wav_to_clips(sys.argv[1])
+    if sys.argv[2] == "e":
+        cfg = "emobase2010.conf"
+    else:
+        cfg = "IS09_emotion.conf"
+    from_clips_to_feature(cfg)

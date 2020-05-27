@@ -64,6 +64,7 @@ def a_model5_2(feature_number=384):  # 51,303 // 12,967
     model.add(Dense(7, activation='softmax'))
     return model
 
+
 def a_model5_3(feature_number=384):
     model = Sequential()
     model.add(Dense(16, input_shape=(feature_number,), activation='relu'))

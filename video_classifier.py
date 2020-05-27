@@ -1,4 +1,5 @@
 import glob
+import sys
 import random
 import csv
 import numpy as np
@@ -19,9 +20,9 @@ from test_models import *
 
 def get_feature_name(feature_number):
     if feature_number == 384:
-        return "audio_feature_IS09_emotion"
+        return "IS09_emotion"
     if feature_number == 1582:
-        return "audio_feature_emobase2010"
+        return "emobase2010"
     return None
 
 
@@ -44,13 +45,13 @@ class VideoClassifier:
         else:
 
             if train_mode == "late_fusion" and \
-                    not exists('lables_late_fusion' + self.feature_name.replace("audio_feature", "") + '.csv'):
+                    not exists('lables_late_fusion' + self.feature_name + '.csv'):
                 print("\n##### GENERATING CSV FOR LATE FUSIUON... #####")
                 self.labels_late_fusion = self.generate_data_for_late_fusion(base_path)
                 print("\n##### CSV GENERATED! #####")
             else:
                 self.labels_late_fusion = {}
-                with open('lables_late_fusion' + self.feature_name.replace("audio_feature", "") + '.csv', 'r') as f:
+                with open('lables_late_fusion' + self.feature_name + '.csv', 'r') as f:
                     f.readline()
                     csv_reader = csv.reader(f)
                     for row in csv_reader:
@@ -62,7 +63,7 @@ class VideoClassifier:
             ep = 50
             opts = ["Adam", "SGD"]
             lrs = [0.1, 0.01, 0.001, 0.0001]
-            models = [v_model_X, a_model5, a_model5_1, a_model5_2, a_model5_3, a_model6, a_model6_1, a_model6_2]
+            models = [a_model5_3, a_model6, a_model6_1, a_model6_2, a_model1, a_model2, a_model3, a_model4]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
                 for opt in opts:
@@ -124,7 +125,7 @@ class VideoClassifier:
             my_csv[clip_id] = [graund_truth, label_from_frame, label_from_audio]
             print(len(my_csv), "/", total)
 
-        with open('lables_late_fusion' + self.feature_name.replace("audio_feature", "") + '.csv', 'w') as f:
+        with open('lables_late_fusion' + self.feature_name + '.csv', 'w') as f:
             f.write("clip_id, ground_truth, frame_label, audio_label\n")
             for k in my_csv:
                 f.write(str(k) + "," + str(my_csv[k][0]) + "," + str(my_csv[k][1]) + "," + str(my_csv[k][2]) + "\n")
@@ -243,5 +244,5 @@ class VideoClassifier:
 
 
 vc = VideoClassifier(
-   audio_model_path="audioModel_0.2491_epoch37_lr0.0001_OptAdam_Modela_model5_2_Feature384_4.h5")
+   audio_model_path="audio_models/audioModel_0.2491_epoch37_lr0.0001_OptAdam_Modela_model5_2_Feature384_4.h5")
    # audio_model_path="audio_models/audioModel_0.23446229100227356_epoch50_lr0.001_OptAdam_Model1_Feature384_1.h5")
