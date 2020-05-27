@@ -63,13 +63,13 @@ def from_wav_to_clips(frame_size=300):
             i += 1
             cmd = "ffmpeg -y -ss " + to_t_stamp(d0) + " -i " + wav_dir + file_path + ".wav -t " + to_t_stamp(
                 frame_size) + " -ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i) + ".wav"
-        subprocess.call(cmd, shell=True)
-        d0 += frame_step
-    if d0 < duration:
-        cmd = "ffmpeg -y -ss " + to_t_stamp(
-            duration - frame_size) + " -i " + wav_dir + file_path + ".wav -t " + to_t_stamp(
-            frame_size) + " -ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i + 1) + ".wav"
-        subprocess.call(cmd, shell=True)
+            subprocess.call(cmd, shell=True)
+            d0 += frame_step
+        if d0 < duration:
+            cmd = "ffmpeg -y -ss " + to_t_stamp(
+                duration - frame_size) + " -i " + wav_dir + file_path + ".wav -t " + to_t_stamp(
+                frame_size) + " -ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i + 1) + ".wav"
+            subprocess.call(cmd, shell=True)
 
 
 def from_clips_to_feature(cfg_file="emobase2010.conf", frame_size=300):
