@@ -264,8 +264,7 @@ if __name__ == "__main__":
             model_path = "audio_models/audioModel_0.2701_epoch26_lr0.0001_OptAdam_Modela_model1_Feature1582_0.h5"
             vc = VideoClassifier(train_mode="late_fusion", audio_model_path=model_path)
         else:
-            arff_paths = {"e1": "emobase2010_100", "e3": "emobase2010_300", "e6": "emobase2010_600",
-                          "i1": "IS09_emotion_100", "i3": "IS09_emotion_200", "i6": "IS09_emotion_600"}
+            arff_paths = {"e": "emobase2010_300", "i": "IS09_emotion_300"}
             arff_path = arff_paths[sys.argv[2]]
             vc = VideoClassifier(train_mode="early_fusion", feature_name=arff_path)
     except:
