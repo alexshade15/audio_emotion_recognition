@@ -91,9 +91,9 @@ class VideoClassifier:
                                         models_name[index] + "_Feature" + self.feature_name + "_" + str(
                                 self.iteration) + "_" + self.train_mode + ".txt"
 
-                            log_file = open("video_logs/" + file_name, "w")
-                            old_stdout = sys.stdout
-                            sys.stdout = log_file
+                            # log_file = open("video_logs/" + file_name, "w")
+                            # old_stdout = sys.stdout
+                            # sys.stdout = log_file
                             if self.train_mode == "late_fusion":
                                 self.model = self.train(t_files, v_files, bs, ep, lr, opt, model(14), self.late_gen)
                             elif self.train_mode == "early_fusion":
@@ -103,8 +103,8 @@ class VideoClassifier:
                                 v_files = glob.glob(bp + "Val" + "/*/*dat")
                                 self.model = self.train(t_files, v_files, bs, ep, lr, opt, model(self.feature_number),
                                                         self.early_gen)
-                            sys.stdout = old_stdout
-                            log_file.close()
+                            # sys.stdout = old_stdout
+                            # log_file.close()
 
     def generate_data_for_late_fusion(self, train_files, val_files):
         my_csv = {}
@@ -206,7 +206,7 @@ class VideoClassifier:
         # cb.append(TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True))
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
                                       validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
-                                      workers=0, verbose=0, callbacks=cb)
+                                      workers=1, verbose=0, callbacks=cb)
         # score = model.evaluate_generator(test_gen, no_of_test_images // batch_size)
         print("\n\nTrain Accuracy =", history.history['accuracy'])
         print("\nVal Accuracy =", history.history['val_accuracy'])
@@ -259,16 +259,13 @@ class VideoClassifier:
 
 
 if __name__ == "__main__":
-    try:
-        if sys.argv[1] == "late":
-            model_path = "audio_models/audioModel_0.2701_epoch26_lr0.0001_OptAdam_Modela_model1_Feature1582_0.h5"
-            vc = VideoClassifier(train_mode="late_fusion", audio_model_path=model_path)
-        else:
-            arff_paths = {"e": "emobase2010_300", "i": "IS09_emotion_300"}
-            arff_path = arff_paths[sys.argv[2]]
-            vc = VideoClassifier(train_mode="early_fusion", feature_name=arff_path)
-    except:
-        print("############ WRONG PARAMETERS")
+    if sys.argv[1] == "late":
+        model_path = "audio_models/audioModel_0.2701_epoch26_lr0.0001_OptAdam_Modela_model1_Feature1582_0.h5"
+        vc = VideoClassifier(train_mode="late_fusion", audio_model_path=model_path)
+    else:
+        arff_paths = {"e": "emobase2010_300", "i": "IS09_emotion_300"}
+        arff_path = arff_paths[sys.argv[2]]
+        vc = VideoClassifier(train_mode="early_fusion", feature_name=arff_path)
 
 # "audio_models/audioModel_0.2491_epoch37_lr0.0001_OptAdam_Modela_model5_2_Feature384_4.h5")
 # "audio_model_path="audio_models/audioModel_0.23446229100227356_epoch50_lr0.001_OptAdam_Model1_Feature384_1.h5")
