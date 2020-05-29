@@ -66,7 +66,8 @@ class AudioClassifier:
             ep = 50
             opts = ["Adam", "SGD"]
             lrs = [0.01, 0.001, 0.0001]  # 0.1, 0.01, 0.001, 0.0001]
-            models = [a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3, a_model6, a_model6_1, a_model6_2]
+            models = [a_model1, a_model2, a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3, a_model6,
+                      a_model6_1, a_model6_2]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
                 for opt in opts:
@@ -86,10 +87,11 @@ class AudioClassifier:
                                 skips -= 1
                                 continue
                             self.current_model_name = models_name[index]
-                            self.feature_number = get_feature_number(base_path.split("/")[-2])
+                            self.feature_name = base_path.split("/")[-2]
+                            self.feature_number = get_feature_number(self.feature_name)
 
                             file_name = "audioModel_epoch" + str(ep) + "_lr" + str(lr) + "_Opt" + opt + "_" + \
-                                        models_name[index] + "_Feature" + str(self.feature_number) + "_" + str(
+                                        models_name[index] + "_Feature" + self.feature_name + "_" + str(
                                 self.iteration) + ".txt"
                             log_file = open("audio_logs/" + file_name, "w")
                             old_stdout = sys.stdout
@@ -105,17 +107,13 @@ class AudioClassifier:
         for c in self.classes:
             all_predictions[c] = 0
         for feature_vector_path in glob.glob(path_clip_beginngin + "*"):
-            # print("\n\n\n\n##############\nFEATURE_PATH", feature_vector_path)
             pred, ground_truth = self.test_model(feature_vector_path)
             all_predictions[pred] += 1
         return max(all_predictions.items(), key=operator.itemgetter(1))[0]
 
     def test_model(self, sample_path):
-        # print("self.feature_number:", self.feature_number)
         sample = np.array(from_arff_to_feture(sample_path)).reshape(1, self.feature_number)
         ground_truth = sample_path.split("/")[-2]
-        # print("SAMPLE_PATH, sample_shape", sample_path, sample.shape)
-        # print("model input_shape", self.model.layers[0].input_shape)
         prediction = self.model.predict(sample)
         return self.lb.inverse_transform(prediction)[0], ground_truth
 
@@ -191,7 +189,7 @@ class AudioClassifier:
         no_of_val_images = len(val_files)
 
         model_name = "_lr" + str(learning_rate) + "_Opt" + myopt + "_Model" + str(self.current_model_name) + \
-                     "_Feature" + str(self.feature_number) + "_" + str(self.iteration) + ".h5"
+                     "_Feature" + self.feature_name + "_" + str(self.iteration) + ".h5"
 
         cb = [ModelCheckpoint(filepath="audio_models/audioModel_{val_accuracy:.4f}_epoch{epoch:02d}" + model_name,
                               monitor="val_accuracy")]
@@ -214,4 +212,9 @@ class AudioClassifier:
 
 
 if __name__ == "__main__":
-    ac = AudioClassifier(base_path="/user/vlongobardi/emobase2010_300/")
+    try:
+        audio_path = sys.argv[1]
+    except:
+        audio_path = "/user/vlongobardi/emobase2010_300/"
+    print("######################## AUDIO PATH: ", sys.argv[1])
+    ac = AudioClassifier(base_path=sys.argv[1])

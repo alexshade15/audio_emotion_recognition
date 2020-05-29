@@ -1,5 +1,5 @@
-from keras.models import Sequential
-from keras.layers import Dropout, Dense
+from keras.models import Sequential, Model
+from keras.layers import Dropout, Dense, TimeDistributed, Input, Concatenate
 
 
 def a_model1(feature_number=384):  # 6,635 // 1,843
@@ -111,3 +111,18 @@ def v_model_X(feature_number=14):
     model.add(Dense(16, input_shape=(feature_number,), activation='relu'))
     model.add(Dense(7, activation='softmax'))
     return model
+
+
+def e_model_1(feature_number=384):
+    audio_input = Input(shape=(2, feature_number // 2))
+    frame_input = Input(shape=(50, 1024))
+    combined = Concatenate([frame_input, audio_input])
+    # kernel_regularizer=regularizers.l2(weight_decay)
+    x = TimeDistributed(Dense(100, activation='tanh'))(combined)
+    x = TimeDistributed(Dropout(0.5))(x)
+    x = TimeDistributed(Dense(7, activation='softmax'))(x)
+    return Model(inputs=[frame_input, audio_input], outputs=x)
+
+
+
+
