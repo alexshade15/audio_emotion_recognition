@@ -15,39 +15,23 @@ from sklearn.metrics import confusion_matrix, accuracy_score, classification_rep
 
 from Dataset.Dataset_Utils.dataset_tools import print_cm
 from frames_classifier import FramesClassifier
-from audio_classifier import AudioClassifier
+from audio_classifier import AudioClassifier, from_arff_to_feture, get_feature_number
 from test_models import *
 
-
-def get_feature_number(feature_name):
-    if "IS09_emotion" in feature_name:
-        return 384
-    if "emobase2010" in feature_name:
-        return 1582
-    return None
-
-def from_arff_to_feture(arff_file):
-    try:
-        with open(arff_file, 'r') as f:
-            arff = f.read()
-            header, body = arff.split("@data")
-            features = body.split(",")
-            features.pop(0)
-            features.pop(-1)
-    except:
-        print("\n\n", arff_file, "\n\n")
-    return features
+classes = ["Angry", "Disgust", "Fear", "Happy", "Neutral", "Sad", "Surprise"]
 
 
 class VideoClassifier:
 
-    def __init__(self, train_mode="late_fusion", video_model_path=None, audio_model_path="myModel_17.h5",
-                 classes=["Angry", "Disgust", "Fear", "Happy", "Neutral", "Sad", "Surprise"],
-                 base_path="/user/vlongobardi/AFEW/aligned/", time_step=16):
+    def __init__(self, train_mode="late_fusion", video_model_path=None, audio_model_path="", time_step=16,
+                 base_path="/user/vlongobardi/AFEW/aligned/", feature_name="emobase2010_300"):
 
         self.fc = FramesClassifier(time_step=time_step)
-        self.ac = AudioClassifier(audio_model_path)
-        self.feature_name = '_'.join(audio_model_path.split("Feature")[1].split("_")[0:2])
+        if train_mode == "late_fusion":
+            self.ac = AudioClassifier(audio_model_path)
+            self.feature_name = '_'.join(audio_model_path.split("Feature")[1].split("_")[0:2])
+        else:
+            self.feature_name = feature_name
         self.feature_number = get_feature_number(self.feature_name)
         self.classes = classes
 
@@ -80,8 +64,11 @@ class VideoClassifier:
             ep = 50
             opts = ["Adam", "SGD"]
             lrs = [0.1, 0.01, 0.001, 0.0001]
-            models = [a_model1, a_model2, a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3, a_model6,
-                      a_model6_1, a_model6_2]
+            if train_mode == "late_fusion":
+                models = [a_model1, a_model2, a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3,
+                          a_model6, a_model6_1, a_model6_2]
+            else:
+                models = [e_model_1]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
                 for opt in opts:
@@ -114,9 +101,8 @@ class VideoClassifier:
                                 bp = base_path.replace("AFEW/aligned", frame_folder)
                                 t_files = glob.glob(bp + "Train" + "/*/*dat")
                                 v_files = glob.glob(bp + "Val" + "/*/*dat")
-                                self.model = self.train(t_files, v_files, bs, ep, lr, opt, model(None), self.early_gen)
-                            elif self.train_mode == "train_level":
-                                self.model = self.train(t_files, v_files, bs, ep, lr, opt)
+                                self.model = self.train(t_files, v_files, bs, ep, lr, opt, model(self.feature_number),
+                                                        self.early_gen)
                             sys.stdout = old_stdout
                             log_file.close()
 
@@ -139,14 +125,12 @@ class VideoClassifier:
         return my_csv
 
     def generate_feature_for_early_fusion(self, train_files, val_files, time_step):
+        video_feature_name = "framefeature_" + str(time_step) + "_" + str(self.fc.overlap)
         for file_name in train_files + val_files:
-            set_type, emotion, clip_id = file_name.split("/")[-3:]
-            self.fc.init_feature_generator()
             features = self.fc.get_feature(file_name)
-            base_path = "/user/vlongobardi/framefeature_" + time_step + "_" + str(
-                self.fc.overlap) + "/" + set_type + "/" + emotion + "/" + clip_id
+            base_path = file_name.split(".")[0].replace("AFEW/aligned", video_feature_name)
             for index, feature in enumerate(features):
-                with open(base_path + str(index) + ".dat", 'wb') as f:
+                with open(base_path + "_" + str(index) + ".dat", 'wb') as f:
                     serialized_feature = pickle.dumps(feature, protocol=0)
                     f.write(serialized_feature)
 
@@ -237,6 +221,7 @@ class VideoClassifier:
 
         return model
 
+    # SOLO PER LATE FUSION
     def predict(self, path):
         audio_path = path.split(".")[0].replace("AFEW/aligned", self.feature_name)
         audio_pred = self.ac.clip_classification(audio_path)
@@ -274,8 +259,17 @@ class VideoClassifier:
 
 
 if __name__ == "__main__":
-    vc = VideoClassifier(train_mode="late_fusion",
-                         audio_model_path="audio_models/audioModel_0.2701_epoch26_lr0.0001_OptAdam_Modela_model1_Feature1582_0.h5")
+    try:
+        if sys.argv[1] == "late":
+            model_path = "audio_models/audioModel_0.2701_epoch26_lr0.0001_OptAdam_Modela_model1_Feature1582_0.h5"
+            vc = VideoClassifier(train_mode="late_fusion", audio_model_path=model_path)
+        else:
+            arff_paths = {"e1": "emobase2010_100", "e3": "emobase2010_300", "e6": "emobase2010_600",
+                          "i1": "IS09_emotion_100", "i3": "IS09_emotion_200", "i6": "IS09_emotion_600"}
+            arff_path = arff_paths[sys.argv[2]]
+            vc = VideoClassifier(train_mode="early_fusion", feature_name=arff_path)
+    except:
+        print("############ WRONG PARAMETERS")
 
 # "audio_models/audioModel_0.2491_epoch37_lr0.0001_OptAdam_Modela_model5_2_Feature384_4.h5")
 # "audio_model_path="audio_models/audioModel_0.23446229100227356_epoch50_lr0.001_OptAdam_Model1_Feature384_1.h5")

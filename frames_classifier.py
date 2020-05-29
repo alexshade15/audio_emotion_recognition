@@ -39,8 +39,8 @@ class FramesClassifier:
         if self.feature_generator is None:
             self.init_feature_generator()
 
+        features = []
         generator = DataGenerator(path, '', 1, 31, NoAug(), split_video_len=1, max_invalid=12, test=True)
-
         item = {
             'frames': generator[0][0].reshape(generator[0][0].shape[1:]),
             'label': generator[0][1]
@@ -50,9 +50,8 @@ class FramesClassifier:
         if len(item['frames']) < self.model.input_shape[1]:
             x = split_video(item=item, split_len=self.model.input_shape[1])[0]['frames']
 
-        features = []
         for i in range(0, (len(x) - self.time_step + 1), int(self.time_step * self.overlap)):
             item = x[i:i + self.time_step]
             item = item[np.newaxis, ...]
-            features.append(self.model.predict(item))
+            features.append(self.feature_generator.predict(item))
         return features
