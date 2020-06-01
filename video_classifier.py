@@ -43,21 +43,23 @@ class VideoClassifier:
             self.train_mode = train_mode
             t_files = glob.glob(base_path + "Train" + "/*/*csv")
             v_files = glob.glob(base_path + "Val" + "/*/*csv")
-            if self.train_mode == "late_fusion" and not exists('lables_late_fusion' + self.feature_name + '.csv'):
-                print("\n##### GENERATING CSV FOR LATE FUSIUON... #####")
-                self.labels_late_fusion = self.generate_data_for_late_fusion(t_files, v_files)
-                print("\n##### CSV GENERATED! #####")
+            if self.train_mode == "late_fusion":
+                if not exists('lables_late_fusion' + self.feature_name + '.csv'):
+                    print("\n##### GENERATING CSV FOR LATE FUSIUON... #####")
+                    self.labels_late_fusion = self.generate_data_for_late_fusion(t_files, v_files)
+                    print("\n##### CSV GENERATED! #####")
+                else:
+                    self.labels_late_fusion = {}
+                    with open('lables_late_fusion' + self.feature_name + '.csv', 'r') as f:
+                        f.readline()
+                        csv_reader = csv.reader(f)
+                        for row in csv_reader:
+                            self.labels_late_fusion[row[0]] = [row[1], row[2], row[3]]
             elif self.train_mode == "early_fusion" and not len(glob.glob("/user/vlongobardi/framefeature_16_50/*/*/*")):
                 print("\n##### GENERATING FEATURES FOR EARLY FUSIUON... #####")
                 self.generate_feature_for_early_fusion(t_files, v_files, time_step)
                 print("\n##### FEATURES GENERATED! #####")
-            else:
-                self.labels_late_fusion = {}
-                with open('lables_late_fusion' + self.feature_name + '.csv', 'r') as f:
-                    f.readline()
-                    csv_reader = csv.reader(f)
-                    for row in csv_reader:
-                        self.labels_late_fusion[row[0]] = [row[1], row[2], row[3]]
+
             skips = 0
             iters = 10
             bs = 16
@@ -126,7 +128,7 @@ class VideoClassifier:
 
     def generate_feature_for_early_fusion(self, train_files, val_files, time_step):
         self.fc.init_feature_generator()
-        video_feature_name = "framefeature_" + str(time_step) + "_" + str(int(self.fc.overlap*100))
+        video_feature_name = "framefeature_" + str(time_step) + "_" + str(int(self.fc.overlap * 100))
         for file_name in train_files + val_files:
             features = self.fc.get_feature(file_name)
             base_path = file_name.split(".")[0].replace("AFEW/aligned", video_feature_name)
@@ -208,7 +210,7 @@ class VideoClassifier:
         # cb.append(TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True))
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
                                       validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
-                                      workers=1, verbose=0, callbacks=cb)
+                                      workers=1, verbose=1, callbacks=cb)
         # score = model.evaluate_generator(test_gen, no_of_test_images // batch_size)
         print("\n\nTrain Accuracy =", history.history['accuracy'])
         print("\nVal Accuracy =", history.history['val_accuracy'])
