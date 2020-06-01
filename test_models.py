@@ -114,8 +114,9 @@ def v_model_X(feature_number=14):
 
 
 def e_model_1(feature_number=384):
-    audio_input = Input(shape=(2, feature_number // 2))
-    frame_input = Input(shape=(50, 1024))
+    # audio_input = Input(shape=(2, feature_number // 2))    16?
+    audio_input = Input(shape=(16, feature_number))
+    frame_input = Input(shape=(16, 1024))
     combined = Concatenate([frame_input, audio_input])
     # kernel_regularizer=regularizers.l2(weight_decay)
     x = TimeDistributed(Dense(100, activation='tanh'))(combined)

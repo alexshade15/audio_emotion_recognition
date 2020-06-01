@@ -134,51 +134,52 @@ class VideoClassifier:
                     serialized_feature = pickle.dumps(feature, protocol=0)
                     f.write(serialized_feature)
 
-    def late_gen(self, list_feature_vectors, batch_size, mode="train"):
+    def late_gen(self, list_files, batch_size, mode="train"):
         c = 0
         if mode == "train":
-            random.shuffle(list_feature_vectors)
+            random.shuffle(list_files)
         while True:
             labels = []
             features = np.zeros((batch_size, 2 * len(self.classes))).astype('float')
             for i in range(c, c + batch_size):
-                clip_id = basename(list_feature_vectors[i].split(".")[0])
+                clip_id = basename(list_files[i].split(".")[0])
                 graund_truth, label_from_frame, label_from_audio = self.labels_late_fusion[clip_id]
                 features[i - c] = np.append(self.lb.transform(np.array([label_from_audio])),
                                             self.lb.transform(np.array([label_from_frame])))
                 labels.append(graund_truth)
             c += batch_size
-            if c + batch_size > len(list_feature_vectors):
+            if c + batch_size > len(list_files):
                 c = 0
-                random.shuffle(list_feature_vectors)
+                random.shuffle(list_files)
                 if mode == "eval":
                     break
             labels = self.lb.transform(np.array(labels))
             yield features, labels
 
-    def early_gen(self, list_feature_vectors, batch_size, mode="train"):
+    def early_gen(self, list_files, batch_size, mode="train"):
         c = 0
-        new_shape = self.feature_number // 2
+        time_step = self.fc.time_step
+        # new_shape = self.feature_number // 2
         if mode == "train":
-            random.shuffle(list_feature_vectors)
-        frame_feature_name = list_feature_vectors[0].split("/")[2]
+            random.shuffle(list_files)
+        frame_feature_name = list_files[0].split("/")[2]
         while True:
             labels = []
-            features = [np.zeros((batch_size, 50, 1024)).astype('float'),
-                        np.zeros((batch_size, 2, new_shape)).astype('float')]
+            features = [np.zeros((batch_size, time_step, 1024)).astype('float'),
+                        np.zeros((batch_size, time_step, self.feature_number)).astype('float')]
             for i in range(c, c + batch_size):
                 # "/user/vlongobardi/framefeature_16_50/Train/Sad/011603980_0.dat"
-                with open(list_feature_vectors[i], 'rb') as f:
+                with open(list_files[i], 'rb') as f:
                     features[0][i - c].append(pickle.loads(f.write()))
-                arff_file = list_feature_vectors[i].replace(frame_feature_name, self.feature_name).replace("dat",
-                                                                                                           "arff")
-                features[0][i - c].append(np.array(from_arff_to_feture(arff_file)).reshape(2, new_shape))
-                graund_truth = list_feature_vectors[i].split("/")[-2]
+                arff_file = list_files[i].replace(frame_feature_name, self.feature_name).replace("dat", "arff")
+                arff_feature = np.array(from_arff_to_feture(arff_file)).reshape(1, self.feature_number)
+                features[1][i - c].append(np.repeat(arff_feature, time_step, axis=0))
+                graund_truth = list_files[i].split("/")[-2]
                 labels.append(graund_truth)
             c += batch_size
-            if c + batch_size > len(list_feature_vectors):
+            if c + batch_size > len(list_files):
                 c = 0
-                random.shuffle(list_feature_vectors)
+                random.shuffle(list_files)
                 if mode == "eval":
                     break
             labels = self.lb.transform(np.array(labels))
