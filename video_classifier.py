@@ -125,7 +125,8 @@ class VideoClassifier:
         return my_csv
 
     def generate_feature_for_early_fusion(self, train_files, val_files, time_step):
-        video_feature_name = "framefeature_" + str(time_step) + "_" + str(self.fc.overlap)
+        self.fc.init_feature_generator()
+        video_feature_name = "framefeature_" + str(time_step) + "_" + str(int(self.fc.overlap*100))
         for file_name in train_files + val_files:
             features = self.fc.get_feature(file_name)
             base_path = file_name.split(".")[0].replace("AFEW/aligned", video_feature_name)
