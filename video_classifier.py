@@ -61,7 +61,7 @@ class VideoClassifier:
                 print("\n##### FEATURES GENERATED! #####")
 
             skips = 0
-            iters = 10
+            iters = 5
             bs = 16
             ep = 50
             opts = ["Adam", "SGD"]
@@ -99,7 +99,7 @@ class VideoClassifier:
                             if self.train_mode == "late_fusion":
                                 self.model = self.train(t_files, v_files, bs, ep, lr, opt, model(14), self.late_gen)
                             elif self.train_mode == "early_fusion":
-                                frame_folder = "framefeature_" + str(time_step) + "_" + str(self.fc.overlap)
+                                frame_folder = "framefeature_" + str(time_step) + "_" + str(int(self.fc.overlap*100))
                                 bp = base_path.replace("AFEW/aligned", frame_folder)
                                 t_files = glob.glob(bp + "Train" + "/*/*dat")
                                 v_files = glob.glob(bp + "Val" + "/*/*dat")
@@ -165,7 +165,7 @@ class VideoClassifier:
         # new_shape = self.feature_number // 2
         if mode == "train":
             random.shuffle(list_files)
-        frame_feature_name = list_files[0].split("/")[2]
+        frame_feature_name = list_files[0].split("/")[3]
         while True:
             labels = []
             features = [np.zeros((batch_size, time_step, 1024)).astype('float'),
@@ -173,10 +173,10 @@ class VideoClassifier:
             for i in range(c, c + batch_size):
                 # "/user/vlongobardi/framefeature_16_50/Train/Sad/011603980_0.dat"
                 with open(list_files[i], 'rb') as f:
-                    features[0][i - c].append(pickle.loads(f.write()))
+                    features[0][i - c] = pickle.loads(f.read())
                 arff_file = list_files[i].replace(frame_feature_name, self.feature_name).replace("dat", "arff")
                 arff_feature = np.array(from_arff_to_feture(arff_file)).reshape(1, self.feature_number)
-                features[1][i - c].append(np.repeat(arff_feature, time_step, axis=0))
+                features[1][i - c] = np.repeat(arff_feature, time_step, axis=0)
                 graund_truth = list_files[i].split("/")[-2]
                 labels.append(graund_truth)
             c += batch_size
@@ -185,7 +185,7 @@ class VideoClassifier:
                 random.shuffle(list_files)
                 if mode == "eval":
                     break
-            labels = self.lb.transform(np.array(labels))
+            labels = np.repeat(self.lb.transform(np.array(labels)).reshape((1, 16, 7)), 16, axis=0)
             yield features, labels
 
     def train(self, train_files, val_files, batch_size, epochs, learning_rate, myopt, model, generator):

@@ -9,13 +9,13 @@ from inference import Inference
 
 
 class FramesClassifier:
-    def __init__(self, weights_path="/user/vlongobardi/checkpoint_best.hdf5", time_step=50):
+    def __init__(self, weights_path="/user/vlongobardi/checkpoint_best.hdf5", time_step=50, overlap=.5):
         self.time_step = time_step
         self.model = SharmaNet(Input(shape=(time_step, 224, 224, 3)), classification=True, weights='afew')
         self.model.load_weights(weights_path)
         self.feature_generator = None
         self.inference = Inference(model=self.model, custom_inference=True, time_step=time_step)
-        self.overlap = None
+        self.overlap = overlap
 
     def predict(self, path):
         test_gen = DataGenerator(path, '', 1, 31, NoAug(), split_video_len=1, max_invalid=12, test=True)
