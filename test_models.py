@@ -1,5 +1,5 @@
 from keras.models import Sequential, Model
-from keras.layers import Dropout, Dense, TimeDistributed, Input, Concatenate
+from keras.layers import Dropout, Dense, TimeDistributed, Input, Concatenate, BatchNormalization
 
 
 def a_model1(feature_number=384):  # 6,635 // 1,843
@@ -102,6 +102,25 @@ def a_model6_2(feature_number=384):  # 58,607 // 49,023
     model.add(Dense(64, activation='relu'))
     model.add(Dense(128, activation='relu'))
     model.add(Dense(256, activation='relu'))
+    model.add(Dense(7, activation='softmax'))
+    return model
+
+
+def a_model_7(feature_number=384):
+    model = Sequential()
+    model.add(BatchNormalization(input_shape=(feature_number,)))
+    model.add(Dense(128, activation='relu'))
+    model.add(Dropout(0.5))
+    model.add(Dense(64, activation='relu'))
+    model.add(Dense(7, activation='softmax'))
+    return model
+
+
+def a_model_7_1(feature_number=384):
+    model = Sequential()
+    model.add(BatchNormalization(input_shape=(feature_number,)))
+    model.add(Dropout(0.5))
+    model.add(Dense(64, activation='relu'))
     model.add(Dense(7, activation='softmax'))
     return model
 
