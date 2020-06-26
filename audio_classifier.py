@@ -68,7 +68,7 @@ class AudioClassifier:
             opts = ["Adam", "SGD"]
             lrs = [0.01, 0.001, 0.0001]  # 0.1, 0.01, 0.001, 0.0001]
             # models = [a_model1, a_model2, a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3, a_model6, a_model6_1, a_model6_2, a_model7, a_model7_1]
-            models = [a_model1, a_model5, a_model5_3, a_model6, a_model6_1, a_model6_2, a_model_7, a_model_7_1]
+            models = [a_model1, a_model5, a_model5_3, a_model6, a_model6_1, a_model6_2, a_model7, a_model7_1]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
                 for opt in opts:
