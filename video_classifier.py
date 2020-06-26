@@ -1,3 +1,4 @@
+import traceback
 import glob
 import sys
 import random
@@ -30,16 +31,19 @@ class VideoClassifier:
         if train_mode == "late_fusion":
             self.ac = AudioClassifier(audio_model_path)
             self.feature_name = '_'.join(audio_model_path.split("Feature")[1].split("_")[0:2])
+            print("AC loaded succ, ", audio_model_path, "\nFeature_name:", self.feature_name)
         else:
             self.feature_name = feature_name
         self.feature_number = get_feature_number(self.feature_name)
         self.classes = classes
 
+        self.lb = LabelBinarizer()
+        self.lb.fit_transform(np.array(classes))
+
         if video_model_path is not None:
             self.model = load_model(video_model_path)
+            print("VC loaded succ")
         else:
-            self.lb = LabelBinarizer()
-            self.lb.fit_transform(np.array(classes))
             self.train_mode = train_mode
             t_files = glob.glob(base_path + "Train" + "/*/*csv")
             v_files = glob.glob(base_path + "Val" + "/*/*csv")
@@ -67,10 +71,9 @@ class VideoClassifier:
             opts = ["Adam", "SGD"]
             lrs = [0.1, 0.01, 0.001, 0.0001]
             if train_mode == "late_fusion":
-                models = [a_model1, a_model2, a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3,
-                          a_model6, a_model6_1, a_model6_2]
+                models = [a_model_7_1, a_model1, a_model2, a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3, a_model6, a_model6_1, a_model6_2, a_model_7, a_model_7_1]
             else:
-                models = [e_model_1]
+                models = [e_model_1_1, e_model_2]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
                 for opt in opts:
@@ -227,21 +230,44 @@ class VideoClassifier:
 
     # SOLO PER LATE FUSION
     def predict(self, path):
-        audio_path = path.split(".")[0].replace("AFEW/aligned", self.feature_name)
-        audio_pred = self.ac.clip_classification(audio_path)
-        graund_truth, frame_pred = self.fc.predict(path)
-        sample = np.append(self.lb.transform(np.array([audio_pred])), self.lb.transform(np.array([frame_pred])))
-        pred = self.model.predict(sample)
-        return self.lb.inverse_transform(pred)[0], graund_truth
+        try:
+          audio_path = path.split(".")[0].replace("AFEW/aligned", self.feature_name)
+          audio_pred = self.ac.clip_classification(audio_path)
+          graund_truth, frame_pred = self.fc.predict(path)
+          sample = np.append(self.lb.transform(np.array([audio_pred])), self.lb.transform(np.array([frame_pred])))
+          #print("\n\n######## 1", sample.shape, sample)
+          pred = self.model.predict(sample.reshape((1,14)))
+        except:
+          traceback.print_exc()
+          print("\n\n######## 3", sample.shape, sample)
+        return self.lb.inverse_transform(pred)[0], audio_pred, frame_pred, graund_truth
 
     def print_confusion_matrix(self, path):
+
+        labels_late_fusion = {}
+        with open('lables_late_fusionemobase2010_600.csv', 'r') as f:
+            f.readline()
+            csv_reader = csv.reader(f)
+            for row in csv_reader:
+                labels_late_fusion[row[0]] = [row[1], row[2], row[3]]
         predictions = []
+        a_p = []
+        f_p = []
         ground_truths = []
         stats = []
         files = glob.glob(path + "/*/*csv")
         for file in files:
-            pred, ground_truth = self.predict(file)
+            #print(file)
+            id = basename(file).split(".")[0]
+            ground_truth, frame_pred, audio_pred = labels_late_fusion[id]
+            sample = np.append(self.lb.transform(np.array([audio_pred])), self.lb.transform(np.array([frame_pred])))
+            pred = self.model.predict(sample.reshape((1, 14)))
+            pred = self.lb.inverse_transform(pred)[0]
+            #print(ground_truth, frame_pred, audio_pred, pred)
+            #pred, audio_pred, frame_pred, ground_truth = self.predict(file)
             predictions.append(pred)
+            a_p.append(audio_pred)
+            f_p.append(frame_pred)
             ground_truths.append(ground_truth)
 
         cm = confusion_matrix(ground_truths, predictions, self.classes)
@@ -250,7 +276,7 @@ class VideoClassifier:
         stats.append(accuracy_score(ground_truths, predictions))
         stats.append(classification_report(ground_truths, predictions))
 
-        print("###Results###")
+        print("###FULL Results###")
         for index, elem in enumerate(stats):
             if index < 2:
                 print_cm(elem, self.classes)
@@ -260,16 +286,58 @@ class VideoClassifier:
                 print("Report")
                 print(elem)
             print("\n\n")
+        print("#################################################################end###\n\n\n")
+        stats = []
+        cm = confusion_matrix(ground_truths, a_p, self.classes)
+        stats.append(cm)
+        stats.append(np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=2))
+        stats.append(accuracy_score(ground_truths, a_p))
+        stats.append(classification_report(ground_truths, a_p))
 
+        print("###Audio Results###")
+        for index, elem in enumerate(stats):
+            if index < 2:
+                print_cm(elem, self.classes)
+            elif index == 2:
+                print("Accuracy score: ", elem)
+            else:
+                print("Report")
+                print(elem)
+            print("\n\n")
+        print("#################################################################end###\n\n\n")
 
+        stats = []
+        cm = confusion_matrix(ground_truths, f_p, self.classes)
+        stats.append(cm)
+        stats.append(np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=2))
+        stats.append(accuracy_score(ground_truths, f_p))
+        stats.append(classification_report(ground_truths, f_p))
+
+        print("###Frame Results###")
+        for index, elem in enumerate(stats):
+            if index < 2:
+                print_cm(elem, self.classes)
+            elif index == 2:
+                print("Accuracy score: ", elem)
+            else:
+                print("Report")
+                print(elem)
+            print("\n\n")
+        print("#################################################################end###\n\n\n")
+
+def test_51(ka):
+    for i in range(ka):
+        model_path = "audio_models/audioModel_0.2953_epoch14_lr0.001_OptAdam_Modela_model6_1_Featureemobase2010_600_0.h5"
+        vc = VideoClassifier(train_mode="late_fusion", audio_model_path=model_path)
+        vc.print_confusion_matrix("/user/vlongobardi/AFEW/aligned/Val")
 if __name__ == "__main__":
     if sys.argv[1] == "late":
-        model_path = "audio_models/audioModel_0.2701_epoch26_lr0.0001_OptAdam_Modela_model1_Feature1582_0.h5"
+        print("LATE")
+        model_path = "audio_models/audioModel_0.2953_epoch14_lr0.001_OptAdam_Modela_model6_1_Featureemobase2010_600_0.h5"
         vc = VideoClassifier(train_mode="late_fusion", audio_model_path=model_path)
+        #vc.print_confusion_matrix("/user/vlongobardi/AFEW/aligned/Val")
     else:
+        print("EARLY")
         arff_paths = {"e": "emobase2010_300", "i": "IS09_emotion_300"}
         arff_path = arff_paths[sys.argv[2]]
         vc = VideoClassifier(train_mode="early_fusion", feature_name=arff_path)
-
-# "audio_models/audioModel_0.2491_epoch37_lr0.0001_OptAdam_Modela_model5_2_Feature384_4.h5")
-# "audio_model_path="audio_models/audioModel_0.23446229100227356_epoch50_lr0.001_OptAdam_Model1_Feature384_1.h5")

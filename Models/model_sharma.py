@@ -13,7 +13,7 @@ from Models.seresnet50 import SEResNet50
 #
 #
 
-basepath = "/user/rpalladino/Models/Weights"
+basepath = "/user/vlongobardi/"
 
 def SharmaNet(input,train_all_baseline=False, classification = True, weight_decay=1e-5, weights = 'afew'):
     

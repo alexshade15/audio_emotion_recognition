@@ -57,7 +57,8 @@ class AudioClassifier:
         self.lb.fit_transform(np.array(classes))
         if model_path is not None:
             self.model = load_model(model_path)
-            self.feature_number = int(model_path.split("_Feature")[-1].split("_")[0])
+            #self.feature_number = int(model_path.split("_Feature")[-1].split("_")[0])
+            self.feature_number = get_feature_number(model_path.split("_Feature")[-1].split("_")[0])
         else:
             # fine tuning
             skips = 0
@@ -66,8 +67,8 @@ class AudioClassifier:
             ep = 50
             opts = ["Adam", "SGD"]
             lrs = [0.01, 0.001, 0.0001]  # 0.1, 0.01, 0.001, 0.0001]
-            models = [a_model1, a_model2, a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3, a_model6,
-                      a_model6_1, a_model6_2]
+            #models = [a_model1, a_model2, a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3, a_model6, a_model6_1, 
+            models = [a_model6_2, a_model_7, a_model_7_1]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
                 for opt in opts:
@@ -93,14 +94,14 @@ class AudioClassifier:
                             file_name = "audioModel_epoch" + str(ep) + "_lr" + str(lr) + "_Opt" + opt + "_" + \
                                         models_name[index] + "_Feature" + self.feature_name + "_" + str(
                                 self.iteration) + ".txt"
-                            log_file = open("audio_logs/" + file_name, "w")
-                            old_stdout = sys.stdout
-                            sys.stdout = log_file
+                            #log_file = open("audio_logs/" + file_name, "w")
+                            #old_stdout = sys.stdout
+                            #sys.stdout = log_file
 
                             self.model = self.train_model(base_path + "Train", base_path + "Val", bs, ep, lr, opt,
                                                           model(self.feature_number))
-                            sys.stdout = old_stdout
-                            log_file.close()
+                            #sys.stdout = old_stdout
+                            #log_file.close()
 
     def clip_classification(self, path_clip_beginngin):
         all_predictions = {}
@@ -196,7 +197,7 @@ class AudioClassifier:
         # cb.append(TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True))
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
                                       validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
-                                      verbose=0, callbacks=cb)
+                                      verbose=1, callbacks=cb)
         # score = model.evaluate_generator(test_gen, no_of_test_images // batch_size)
         print("\n\nTrain Accuracy =", history.history['accuracy'])
         print("\nVal Accuracy =", history.history['val_accuracy'])
