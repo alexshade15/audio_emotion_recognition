@@ -35,6 +35,7 @@ def generate_files(base_dir):
 
 # ffmpeg -i /Val/Disgust/000738334.avi -ab 128k -ac 2 -ar 48000 -vn temp_wav/Val/Disgust/000738334.avi
 def from_avi_to_wav():
+    """ For each video-clip generate a corresponding audio-clip """
     avi_dir = "/user/vlongobardi/AFEW/videos/"
     wav_dir = "/user/vlongobardi/temp_wav/"
     for file_path in generate_files(avi_dir):
@@ -45,10 +46,10 @@ def from_avi_to_wav():
 
 # ffmpeg -y -i ~/AFEW/videos/Train/Angry/000046280.avi 2>&1 | grep Duration | awk '{#print $2}' | tr -d ,
 # ffmpeg -ss 0.3 -i ~/AFEW/videos/Train/Angry/000046280.avi -t 0.3 -ab 128k -ac 2 -ar 48000 -vn 000046280_0.wav
-def from_wav_to_clips(frame_size=300):
+def from_wav_to_clips(frame_size=300, frame_step=150):
+    """ For each audio-clip generate a sub-audio-clips with specific frame size and overlapping """
     wav_dir = "/user/vlongobardi/temp_wav/"
     clip_dir = "/user/vlongobardi/temp_clips/"
-    frame_step = frame_size // 2
     for file_path in generate_files(wav_dir):
         cmd = "ffmpeg -y -i " + wav_dir + file_path + ".wav temp_output.wav"
         bash_output = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -72,9 +73,10 @@ def from_wav_to_clips(frame_size=300):
             subprocess.call(cmd, shell=True)
 
 
-def from_clips_to_feature(cfg_file="emobase2010.conf", frame_size=300):
-    base_dir = "/user/vlongobardi/temp_clips/"
-    feature_dir = "/user/vlongobardi/" + cfg_file.split(".")[0] + "_" + str(frame_size) + "/"
+def from_clips_to_feature(cfg_file="emobase2010.conf", frame_size=300, middle_feature_dir="", base_dir=None):
+    if base_dir is None:
+        base_dir = "/user/vlongobardi/temp_clips/"
+    feature_dir = "/user/vlongobardi/" + middle_feature_dir + cfg_file.split(".")[0] + "_" + str(frame_size) + "/"
     config_path = "/user/vlongobardi/opensmile-2.3.0/config/" + cfg_file
     # SMILExtract -C opensmile-2.3.0/config/emobase2010_2.conf -I test.wav -O output.arff -instname input
     for file_path in generate_files(base_dir):
