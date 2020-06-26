@@ -57,18 +57,18 @@ class AudioClassifier:
         self.lb.fit_transform(np.array(classes))
         if model_path is not None:
             self.model = load_model(model_path)
-            #self.feature_number = int(model_path.split("_Feature")[-1].split("_")[0])
+            # self.feature_number = int(model_path.split("_Feature")[-1].split("_")[0])
             self.feature_number = get_feature_number(model_path.split("_Feature")[-1].split("_")[0])
         else:
             # fine tuning
             skips = 0
-            iters = 5
+            iters = 10
             bs = 16
             ep = 50
             opts = ["Adam", "SGD"]
             lrs = [0.01, 0.001, 0.0001]  # 0.1, 0.01, 0.001, 0.0001]
-            #models = [a_model1, a_model2, a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3, a_model6, a_model6_1, 
-            models = [a_model6_2, a_model_7, a_model_7_1]
+            # models = [a_model1, a_model2, a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3, a_model6, a_model6_1, a_model6_2, a_model7, a_model7_1]
+            models = [a_model1, a_model5, a_model5_3, a_model6, a_model6_1, a_model6_2, a_model_7, a_model_7_1]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
                 for opt in opts:
@@ -94,14 +94,14 @@ class AudioClassifier:
                             file_name = "audioModel_epoch" + str(ep) + "_lr" + str(lr) + "_Opt" + opt + "_" + \
                                         models_name[index] + "_Feature" + self.feature_name + "_" + str(
                                 self.iteration) + ".txt"
-                            #log_file = open("audio_logs/" + file_name, "w")
-                            #old_stdout = sys.stdout
-                            #sys.stdout = log_file
+                            # log_file = open("audio_logs/" + file_name, "w")
+                            # old_stdout = sys.stdout
+                            # sys.stdout = log_file
 
                             self.model = self.train_model(base_path + "Train", base_path + "Val", bs, ep, lr, opt,
                                                           model(self.feature_number))
-                            #sys.stdout = old_stdout
-                            #log_file.close()
+                            # sys.stdout = old_stdout
+                            # log_file.close()
 
     def clip_classification(self, path_clip_beginngin):
         all_predictions = {}
@@ -217,5 +217,5 @@ if __name__ == "__main__":
         audio_path = sys.argv[1]
     except:
         audio_path = "/user/vlongobardi/emobase2010_300/"
-    print("######################## AUDIO PATH: ", sys.argv[1])
-    ac = AudioClassifier(base_path=sys.argv[1])
+    print("######################## AUDIO PATH: ", audio_path)
+    ac = AudioClassifier(base_path=audio_path)

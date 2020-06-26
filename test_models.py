@@ -106,7 +106,7 @@ def a_model6_2(feature_number=384):  # 58,607 // 49,023
     return model
 
 
-def a_model_7(feature_number=384):
+def a_model7(feature_number=384):
     model = Sequential()
     model.add(BatchNormalization(input_shape=(feature_number,)))
     model.add(Dense(128, activation='relu'))
@@ -116,7 +116,7 @@ def a_model_7(feature_number=384):
     return model
 
 
-def a_model_7_1(feature_number=384):
+def a_model7_1(feature_number=384):
     model = Sequential()
     model.add(BatchNormalization(input_shape=(feature_number,)))
     model.add(Dropout(0.5))
