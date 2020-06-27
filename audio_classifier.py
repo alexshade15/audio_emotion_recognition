@@ -62,19 +62,24 @@ class AudioClassifier:
         else:
             # fine tuning
             skips = 0
-            iters = 10
+            iters = 5
             bs = 16
             ep = 50
             opts = ["Adam", "SGD"]
-            lrs = [0.01, 0.001, 0.0001]  # 0.1, 0.01, 0.001, 0.0001]
-            # models = [a_model1, a_model2, a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3, a_model6, a_model6_1, a_model6_2, a_model7, a_model7_1]
-            models = [a_model1, a_model5, a_model5_3, a_model6, a_model6_1, a_model6_2, a_model7, a_model7_1]
+            lrs = [0.1, 0.01, 0.001, 0.0001]
+            models = [a_model1, a_model2, a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3, a_model6,
+                      a_model6_1, a_model6_2, a_model7, a_model7_1]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
                 for opt in opts:
                     for lr in lrs:
                         for iteration in range(iters):
                             self.iteration = iteration
+
+                            if skips > 0:
+                                skips -= 1
+                                continue
+
                             print(
                                 "\n\n################################################################################\n"
                                 "############################## ITERATION " + str(iteration + 1) + " of " + str(iters) +
@@ -84,9 +89,6 @@ class AudioClassifier:
                                 "\nOpt:", opt, "in", opts,
                                 "\nLr:", lr, "in", lrs)
 
-                            if skips > 0:
-                                skips -= 1
-                                continue
                             self.current_model_name = models_name[index]
                             self.feature_name = base_path.split("/")[-2]
                             self.feature_number = get_feature_number(self.feature_name)
