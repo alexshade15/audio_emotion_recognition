@@ -11,12 +11,13 @@ from inference import Inference
 class FramesClassifier:
     def __init__(self, weights_path="/user/vlongobardi/checkpoint_best.hdf5", time_step=50, overlap=.5):
         self.time_step = time_step
-        self.model = SharmaNet(Input(shape=(time_step, 224, 224, 3)), classification=True, weights='afew')
+        self.model = SharmaNet(Input(shape=(self.time_step, 224, 224, 3)), classification=True, weights='afew')
         self.model.load_weights(weights_path)
         self.feature_generator = None
-        self.inference = Inference(model=self.model, custom_inference=True, time_step=time_step)
+        self.inference = Inference(model=self.model, custom_inference=True, time_step=self.time_step)
         self.overlap = overlap
 
+    # #### LATE FUSION #### #
     def predict(self, path):
         test_gen = DataGenerator(path, '', 1, 31, NoAug(), split_video_len=1, max_invalid=12, test=True)
         self._clear_past_predictions()
@@ -30,12 +31,15 @@ class FramesClassifier:
         self.inference.true.clear()
         self.inference.predicted.clear()
 
-    def init_feature_generator(self, overlap=.5):
+    # ###################### #
+    # #### EARLY FUSION #### #
+    def init_feature_generator(self):
+        """ Define a new model to generate features for frames. Obtained removing all layers after the RNN """
         self.feature_generator = Model(self.model.input, self.model.layers[-5].output)
-        self.overlap = overlap
         # self.feature_generator.summary()
 
     def get_feature(self, path):
+        """ Given the CSV clip, generates a List: each entry are a frame features """
         if self.feature_generator is None:
             self.init_feature_generator()
 
@@ -45,13 +49,8 @@ class FramesClassifier:
             'frames': generator[0][0].reshape(generator[0][0].shape[1:]),
             'label': generator[0][1]
         }
-
-        x = item['frames']
-        if len(item['frames']) < self.model.input_shape[1]:
-            x = split_video(item=item, split_len=self.model.input_shape[1])[0]['frames']
-
-        for i in range(0, (len(x) - self.time_step + 1), int(self.time_step * self.overlap)):
-            item = x[i:i + self.time_step]
-            item = item[np.newaxis, ...]
+        for i in range(0, len(item['frames'])):
+            item = item['frames'][i]
+            item = item[np.newaxis, np.newaxis, ...]
             features.append(self.feature_generator.predict(item))
         return features

@@ -46,44 +46,48 @@ def from_avi_to_wav():
 
 # ffmpeg -y -i ~/AFEW/videos/Train/Angry/000046280.avi 2>&1 | grep Duration | awk '{#print $2}' | tr -d ,
 # ffmpeg -ss 0.3 -i ~/AFEW/videos/Train/Angry/000046280.avi -t 0.3 -ab 128k -ac 2 -ar 48000 -vn 000046280_0.wav
-def from_wav_to_clips(frame_size=300, frame_step=150):
+def execute_command(wav_dir, file_path, frame_size, clip_dir, i, offset=0):
+    if offset:
+        ss_option = " -ss " + to_t_stamp(offset)
+    else:
+        ss_option = ""
+
+    cmd = "ffmpeg -y" + ss_option + " -i " + wav_dir + file_path + ".wav -t " + to_t_stamp(
+        frame_size) + " -ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i) + ".wav"
+    subprocess.call(cmd, shell=True)
+
+
+def from_wav_to_clips(frame_size=300, frame_step=150, offset=0):
     """ For each audio-clip generate a sub-audio-clips with specific frame size and overlapping """
     wav_dir = "/user/vlongobardi/temp_wav/"
     clip_dir = "/user/vlongobardi/temp_clips/"
     for file_path in generate_files(wav_dir):
         cmd = "ffmpeg -y -i " + wav_dir + file_path + ".wav temp_output.wav"
+
         bash_output = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-        # #print("\n\n", bash_output.stderr.decode("utf-8"), "\n\n")
+        # print("\n\n", bash_output.stderr.decode("utf-8"), "\n\n")
         duration = to_milliseconds(bash_output.stderr.decode("utf-8").split("Duration: ")[1].split(",")[0])
         i = 0
-        d0 = frame_step
-        cmd = "ffmpeg -y -i " + wav_dir + file_path + ".wav -t " + to_t_stamp(frame_size) + \
-              " -ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i) + ".wav"
-        subprocess.call(cmd, shell=True)
+        execute_command(wav_dir, file_path, frame_size, clip_dir, i, offset)
+        d0 = frame_step + offset
         while d0 < (duration - frame_size):
             i += 1
-            cmd = "ffmpeg -y -ss " + to_t_stamp(d0) + " -i " + wav_dir + file_path + ".wav -t " + to_t_stamp(
-                frame_size) + " -ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i) + ".wav"
-            subprocess.call(cmd, shell=True)
+            execute_command(wav_dir, file_path, frame_size, clip_dir, i, d0)
             d0 += frame_step
-        if d0 < duration:
-            cmd = "ffmpeg -y -ss " + to_t_stamp(
-                duration - frame_size) + " -i " + wav_dir + file_path + ".wav -t " + to_t_stamp(
-                frame_size) + " -ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i + 1) + ".wav"
-            subprocess.call(cmd, shell=True)
+        if d0 < duration and offset == 0:
+            execute_command(wav_dir, file_path, frame_size, clip_dir, i + 1, duration - frame_size)
 
 
+# SMILExtract -C opensmile-2.3.0/config/emobase2010_2.conf -I test.wav -O output.arff -instname input
 def from_clips_to_feature(cfg_file="emobase2010.conf", frame_size=300, middle_feature_dir="", base_dir=None):
     if base_dir is None:
         base_dir = "/user/vlongobardi/temp_clips/"
     feature_dir = "/user/vlongobardi/" + middle_feature_dir + cfg_file.split(".")[0] + "_" + str(frame_size) + "/"
     config_path = "/user/vlongobardi/opensmile-2.3.0/config/" + cfg_file
-    # SMILExtract -C opensmile-2.3.0/config/emobase2010_2.conf -I test.wav -O output.arff -instname input
     for file_path in generate_files(base_dir):
         cmd = "SMILExtract -C " + config_path + " -I " + base_dir + file_path + ".wav -O " + feature_dir + file_path + \
-              ".arff"  # -instname " + name
+              ".arff"
         subprocess.call(cmd, shell=True)
-        # print("\n\n")
 
 
 if __name__ == "__main__":

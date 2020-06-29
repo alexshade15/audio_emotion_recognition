@@ -5,7 +5,8 @@ import random
 import csv
 import pickle
 import numpy as np
-from os.path import basename, exists
+from math import ceil
+from os.path import basename, exists, dirname
 
 from keras.models import load_model
 from keras.callbacks import TensorBoard, ModelCheckpoint
@@ -27,13 +28,15 @@ class VideoClassifier:
     def __init__(self, train_mode="late_fusion", video_model_path=None, audio_model_path="", time_step=16,
                  base_path="/user/vlongobardi/AFEW/aligned/", feature_name="emobase2010_300"):
 
-        self.fc = FramesClassifier(time_step=time_step)
         self.train_mode = train_mode
         if train_mode == "late_fusion":
+            # ac in late serve per generare csv quando necessario e fare la predict per la matrice di confusione
             self.ac = AudioClassifier(audio_model_path)
+            self.fc = FramesClassifier(time_step=time_step)
             self.feature_name = '_'.join(audio_model_path.split("Feature")[1].split("_")[0:2])
             print("AC loaded successfully,", audio_model_path, "\nFeature_name:", self.feature_name)
         else:
+            self.fc = FramesClassifier(time_step=1)
             self.feature_name = feature_name
         self.feature_number = get_feature_number(self.feature_name)
         self.classes = classes
@@ -49,8 +52,8 @@ class VideoClassifier:
             v_files = glob.glob(base_path + "Val" + "/*/*csv")
             if self.train_mode == "late_fusion":
                 if not exists('lables_late_fusion' + self.feature_name + '.csv'):
-                    print("\n##### GENERATING CSV FOR LATE FUSIUON... #####")
-                    self.labels_late_fusion = self.generate_data_for_late_fusion(t_files, v_files)
+                    print("\n##### GENERATING CSV FOR LATE FUSION... #####")
+                    self.labels_late_fusion = self.generate_data_for_late_fusion(t_files + v_files)
                     print("\n##### CSV GENERATED! #####")
                 else:
                     self.labels_late_fusion = {}
@@ -60,9 +63,21 @@ class VideoClassifier:
                         for row in csv_reader:
                             self.labels_late_fusion[row[0]] = [row[1], row[2], row[3]]
             elif self.train_mode == "early_fusion" and not len(glob.glob("/user/vlongobardi/framefeature_16_50/*/*/*")):
-                print("\n##### GENERATING FEATURES FOR EARLY FUSIUON... #####")
-                self.generate_feature_for_early_fusion(t_files, v_files, time_step)
+                print("\n##### GENERATING FEATURES FOR EARLY FUSION... #####")
+                self.generate_feature_for_early_fusion(t_files + v_files)
                 print("\n##### FEATURES GENERATED! #####")
+
+                if not exists('features_path_early_fusion_' + self.feature_name + '.csv'):
+                    print("\n##### GENERATING CSV FOR EARLY FUSION... #####")
+                    self.feature_path_early_fusion = self.generate_data_for_early_fusion(t_files + v_files)
+                    print("\n##### CSV GENERATED! #####")
+                else:
+                    self.feature_path_early_fusion = {}
+                    with open('features_path_early_fusion_' + self.feature_name + '.csv', 'r') as f:
+                        f.readline()
+                        csv_reader = csv.reader(f)
+                        for row in csv_reader:
+                            self.feature_path_early_fusion.append([row[0], row[1], row[2], row[3]])
 
             skips = 0
             iters = 5
@@ -74,7 +89,7 @@ class VideoClassifier:
                 models = [a_model1, a_model2, a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3,
                           a_model6, a_model6_1, a_model6_2, a_model7, a_model7_1]
             else:
-                models = [e_model_1_1, e_model_2]
+                models = [frame_model]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
                 for opt in opts:
@@ -101,8 +116,9 @@ class VideoClassifier:
                             # sys.stdout = log_file
                             if self.train_mode == "late_fusion":
                                 self.model = self.train(t_files, v_files, bs, ep, lr, opt, model(14), self.late_gen)
+
                             elif self.train_mode == "early_fusion":
-                                frame_folder = "framefeature_" + str(time_step) + "_" + str(int(self.fc.overlap * 100))
+                                frame_folder = "early_feature/framefeature"
                                 bp = base_path.replace("AFEW/aligned", frame_folder)
                                 t_files = glob.glob(bp + "Train" + "/*/*dat")
                                 v_files = glob.glob(bp + "Val" + "/*/*dat")
@@ -111,9 +127,8 @@ class VideoClassifier:
                             # sys.stdout = old_stdout
                             # log_file.close()
 
-    def generate_data_for_late_fusion(self, train_files, val_files):
+    def generate_data_for_late_fusion(self, total_files):
         my_csv = {}
-        total_files = train_files + val_files
         total = len(total_files)
         for file in total_files:
             clip_id = file.split(".")[0]
@@ -130,10 +145,39 @@ class VideoClassifier:
                 f.write(str(k) + "," + str(my_csv[k][0]) + "," + str(my_csv[k][1]) + "," + str(my_csv[k][2]) + "\n")
         return my_csv
 
-    def generate_feature_for_early_fusion(self, train_files, val_files, time_step):
-        self.fc.init_feature_generator()
-        video_feature_name = "framefeature_" + str(time_step) + "_" + str(int(self.fc.overlap * 100))
-        for file_name in train_files + val_files:
+    def generate_data_for_early_fusion(self, total_files):
+        window_size = int(self.feature_name.split("_")[1])
+        frame_to_discard = ceil(window_size / 2 / 40)
+        my_csv = []
+        for file in total_files:
+            clip_id_temp = file.split(".")[0]
+            # '/user/vlongobardi/AFEW/aligned/Train/Angry/012738600.csv'
+            # '/user/vlongobardi/early_feature/framefeature/Train/Angry/012738600_0.dat'
+            # '/user/vlongobardi/early_feature/emobase2010_600/Train/Angry/012738600_0.arff'
+            base_path = clip_id_temp.replace("AFEW/aligned", "early_feature/framefeature") + "_*"
+            frames_features_path = glob.glob(base_path)
+            audio_features_path = glob.glob(base_path.replace("framefeature", self.feature_name))
+            frames_features_path.sort(key=lambda x: int(x.split("_")[-1].split(".")[0]))
+            audio_features_path.sort(key=lambda x: int(x.split("_")[-1].split(".")[0]))
+            graund_truth = basename(dirname(clip_id_temp))
+            clip_id = basename(clip_id_temp)
+
+            # discard video frames based on window size
+            frames_features_path = frames_features_path[frame_to_discard:]
+
+            for index, audio in enumerate(audio_features_path):
+                my_csv.append([clip_id, graund_truth, frames_features_path[index], audio])
+
+        with open('features_path_early_fusion_' + self.feature_name + '.csv', 'w') as f:
+            f.write("clip_id, ground_truth, frame_label, audio_label\n")
+            for line in my_csv:
+                f.write(line[0] + "," + line[1] + "," + line[2] + "," + line[3] + "\n")
+        return my_csv
+
+    def generate_feature_for_early_fusion(self, files):
+        """ generate only single frame features (no audio) """
+        video_feature_name = "early_feature/framefeature"
+        for file_name in files:
             features = self.fc.get_feature(file_name)
             base_path = file_name.split(".")[0].replace("AFEW/aligned", video_feature_name)
             for index, feature in enumerate(features):
@@ -165,22 +209,20 @@ class VideoClassifier:
 
     def early_gen(self, list_files, batch_size, mode="train"):
         c = 0
-        time_step = self.fc.time_step
-        # new_shape = self.feature_number // 2
         if mode == "train":
             random.shuffle(list_files)
-        frame_feature_name = list_files[0].split("/")[3]
         while True:
             labels = []
-            features = [np.zeros((batch_size, time_step, 1024)).astype('float'),
-                        np.zeros((batch_size, time_step, self.feature_number)).astype('float')]
+            features = [np.zeros((batch_size, self.fc.time_step, 1024)).astype('float'),  # frame f.
+                        np.zeros((batch_size, self.fc.time_step, self.feature_number)).astype('float')]  # audio f.
             for i in range(c, c + batch_size):
-                # "/user/vlongobardi/framefeature_16_50/Train/Sad/011603980_0.dat"
+                # "/user/vlongobardi/early_feature/framefeature/Train/Sad/011603980_0.dat"
                 with open(list_files[i], 'rb') as f:
                     features[0][i - c] = pickle.loads(f.read())
-                arff_file = list_files[i].replace(frame_feature_name, self.feature_name).replace("dat", "arff")
-                arff_feature = np.array(from_arff_to_feture(arff_file)).reshape(1, self.feature_number)
-                features[1][i - c] = np.repeat(arff_feature, time_step, axis=0)
+                arff_file = list_files[i].replace("framefeature", self.feature_name).replace("dat", "arff")
+                # arff_feature = np.array(from_arff_to_feture(arff_file)).reshape(1, self.feature_number)
+                # features[1][i - c] = np.repeat(arff_feature, self.fc.time_step, axis=0)
+                features[1][i - c] = np.array(from_arff_to_feture(arff_file)).reshape(1, self.feature_number)
                 graund_truth = list_files[i].split("/")[-2]
                 labels.append(graund_truth)
             c += batch_size
@@ -189,7 +231,7 @@ class VideoClassifier:
                 random.shuffle(list_files)
                 if mode == "eval":
                     break
-            labels = np.repeat(self.lb.transform(np.array(labels)).reshape((1, 16, 7)), 16, axis=0)
+            labels = self.lb.transform(np.array(labels)).reshape((1, 16, 7))
             yield features, labels
 
     def train(self, train_files, val_files, batch_size, epochs, learning_rate, myopt, model, generator):
@@ -202,7 +244,7 @@ class VideoClassifier:
         model.summary()
 
         train_gen = generator(train_files, batch_size)
-        val_gen = generator(val_files, batch_size)
+        val_gen = generator(val_files, batch_size, mode="eval")
         no_of_training_images = len(train_files)
         no_of_val_images = len(val_files)
 
@@ -229,8 +271,8 @@ class VideoClassifier:
 
         return model
 
-    # SOLO PER LATE FUSION
     def predict(self, path):
+        """ ONLY FOR LATE FUSION """
         try:
             audio_path = path.split(".")[0].replace("AFEW/aligned", self.feature_name)
             audio_pred = self.ac.clip_classification(audio_path)
@@ -244,6 +286,8 @@ class VideoClassifier:
         return self.lb.inverse_transform(pred)[0], audio_pred, frame_pred, graund_truth
 
     def print_confusion_matrix(self, path):
+
+        """ IMPLEMENT FOR EARLY FUSION"""
 
         labels_late_fusion = {}
         with open('lables_late_fusionemobase2010_600.csv', 'r') as f:

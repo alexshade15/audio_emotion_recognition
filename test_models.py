@@ -1,5 +1,9 @@
+import tensorflow as tf
 from keras.models import Sequential, Model
-from keras.layers import Dropout, Dense, TimeDistributed, Input, Concatenate, BatchNormalization
+from keras.layers import Dropout, Dense, TimeDistributed, Input, Concatenate, BatchNormalization, Flatten, LSTMCell, \
+    Reshape, Lambda, regularizers
+
+from Models.RNN_stacked_attention import RNNStackedAttention
 
 
 def a_model1(feature_number=384):  # 6,635 // 1,843
@@ -132,34 +136,48 @@ def v_model_X(feature_number=14):
     return model
 
 
-def e_model_1(feature_number=384):
-    # audio_input = Input(shape=(2, feature_number // 2))    16?
-    audio_input = Input(shape=(16, feature_number))
-    frame_input = Input(shape=(16, 1024))
-    # combined = Concatenate([frame_input, audio_input])
+# def e_model_1(feature_number=384):
+#     audio_input = Input(shape=(feature_number))
+#     frame_input = Input(shape=(16, 1024))
+#     frame_input = Flatten()(frame_input)
+#     combined = Concatenate()([frame_input, audio_input])
+#     # kernel_regularizer=regularizers.l2(weight_decay)
+#     x = TimeDistributed(Dense(100, activation='tanh'))(combined)
+#     x = TimeDistributed(Dropout(0.5))(x)
+#     x = TimeDistributed(Dense(7, activation='softmax'))(x)
+#     return Model(inputs=[frame_input, audio_input], outputs=x)
+#
+#
+# def e_model_1_1(feature_number=384):
+#     audio_input = Input(shape=feature_number)
+#     frame_input = Input(shape=(16, 1024))
+#     frame_input = Flatten()(frame_input)
+#     combined = Concatenate()([frame_input, audio_input])
+#     x = TimeDistributed(Dense(100, activation='tanh'))(combined)
+#     x = TimeDistributed(Dense(7, activation='softmax'))(x)
+#     return Model(inputs=[frame_input, audio_input], outputs=x)
+#
+#
+# def e_model_2(feature_number=384):
+#     audio_input = Input(shape=feature_number)
+#     frame_input = Input(shape=(16, 1024))
+#     frame_input = Flatten()(frame_input)
+#     combined = Concatenate()([frame_input, audio_input])
+#     x = TimeDistributed(Dense(128, activation='tanh'))(combined)
+#     x = TimeDistributed(Dropout(0.5))(x)
+#     x = TimeDistributed(Dense(64, activation='tanh'))(x)
+#     x = TimeDistributed(Dense(7, activation='softmax'))(x)
+#     return Model(inputs=[frame_input, audio_input], outputs=x)
+
+
+def frame_model(feature_number=384, weight_decay=1e-5):
+    audio_input = Input(shape=(1, feature_number))
+    frame_input = Input(shape=(1, 1024))
     combined = Concatenate()([frame_input, audio_input])
-    # kernel_regularizer=regularizers.l2(weight_decay)
-    x = TimeDistributed(Dense(100, activation='tanh'))(combined)
+
+    x = TimeDistributed(Dense(100, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay)))(combined)
     x = TimeDistributed(Dropout(0.5))(x)
-    x = TimeDistributed(Dense(7, activation='softmax'))(x)
-    return Model(inputs=[frame_input, audio_input], outputs=x)
+    x = TimeDistributed(Dense(7, activation='softmax', kernel_regularizer=regularizers.l2(weight_decay)))(x)
+    x = Lambda(lambda y: tf.reduce_mean(y, axis=1))(x)
 
-
-def e_model_1_1(feature_number=384):
-    audio_input = Input(shape=(16, feature_number))
-    frame_input = Input(shape=(16, 1024))
-    combined = Concatenate()([frame_input, audio_input])
-    x = TimeDistributed(Dense(100, activation='tanh'))(combined)
-    x = TimeDistributed(Dense(7, activation='softmax'))(x)
-    return Model(inputs=[frame_input, audio_input], outputs=x)
-
-
-def e_model_2(feature_number=384):
-    audio_input = Input(shape=(16, feature_number))
-    frame_input = Input(shape=(16, 1024))
-    combined = Concatenate()([frame_input, audio_input])
-    x = TimeDistributed(Dense(128, activation='tanh'))(combined)
-    x = TimeDistributed(Dropout(0.5))(x)
-    x = TimeDistributed(Dense(64, activation='tanh'))(x)
-    x = TimeDistributed(Dense(7, activation='softmax'))(x)
     return Model(inputs=[frame_input, audio_input], outputs=x)
