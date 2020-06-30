@@ -95,7 +95,7 @@ class VideoClassifier:
                 models = [a_model1, a_model2, a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3,
                           a_model6, a_model6_1, a_model6_2, a_model7, a_model7_1]
             else:
-                models = [frame_model]
+                models = [early_model_1, early_model_2]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
                 for opt in opts:
@@ -246,7 +246,7 @@ class VideoClassifier:
         model.summary()
 
         train_gen = generator(train_files, batch_size)
-        val_gen = generator(val_files, batch_size, mode="eval")
+        val_gen = generator(val_files, batch_size)
         no_of_training_images = len(train_files)
         no_of_val_images = len(val_files)
 
