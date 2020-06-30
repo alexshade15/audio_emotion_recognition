@@ -49,8 +49,9 @@ class FramesClassifier:
             'frames': generator[0][0].reshape(generator[0][0].shape[1:]),
             'label': generator[0][1]
         }
+        x = item['frames']
         for i in range(0, len(item['frames'])):
-            item = item['frames'][i]
+            item = x[i]
             item = item[np.newaxis, np.newaxis, ...]
             features.append(self.feature_generator.predict(item))
         return features

@@ -1,3 +1,4 @@
+from tqdm import tqdm
 import traceback
 import glob
 import sys
@@ -69,15 +70,19 @@ class VideoClassifier:
 
                 if not exists('features_path_early_fusion_' + self.feature_name + '.csv'):
                     print("\n##### GENERATING CSV FOR EARLY FUSION... #####")
-                    self.feature_path_early_fusion = self.generate_data_for_early_fusion(t_files + v_files)
+                    self.csv_early_fusion = {
+                        "train": self.generate_data_for_early_fusion(t_files, "train"),
+                        "val": self.generate_data_for_early_fusion(v_files, "val")
+                    }
                     print("\n##### CSV GENERATED! #####")
                 else:
-                    self.feature_path_early_fusion = {}
-                    with open('features_path_early_fusion_' + self.feature_name + '.csv', 'r') as f:
-                        f.readline()
-                        csv_reader = csv.reader(f)
-                        for row in csv_reader:
-                            self.feature_path_early_fusion.append([row[0], row[1], row[2], row[3]])
+                    self.csv_early_fusion = {}
+                    for name in ["train", "val"]:
+                        with open('features_path_early_fusion_' + name + "_" + self.feature_name + '.csv', 'r') as f:
+                            f.readline()
+                            csv_reader = csv.reader(f)
+                            for row in csv_reader:
+                                self.csv_early_fusion[name] = [row[0], row[1], row[2], row[3]]
 
             skips = 0
             iters = 5
@@ -118,10 +123,7 @@ class VideoClassifier:
                                 self.model = self.train(t_files, v_files, bs, ep, lr, opt, model(14), self.late_gen)
 
                             elif self.train_mode == "early_fusion":
-                                frame_folder = "early_feature/framefeature"
-                                bp = base_path.replace("AFEW/aligned", frame_folder)
-                                t_files = glob.glob(bp + "Train" + "/*/*dat")
-                                v_files = glob.glob(bp + "Val" + "/*/*dat")
+                                t_files, v_files = self.csv_early_fusion["train"], self.csv_early_fusion["val"]
                                 self.model = self.train(t_files, v_files, bs, ep, lr, opt, model(self.feature_number),
                                                         self.early_gen)
                             # sys.stdout = old_stdout
@@ -134,9 +136,9 @@ class VideoClassifier:
             clip_id = file.split(".")[0]
             audio_path = clip_id.replace("AFEW/aligned", self.feature_name)
             label_from_audio = self.ac.clip_classification(audio_path)
-            graund_truth, label_from_frame = self.fc.predict(file)
+            ground_truth, label_from_frame = self.fc.predict(file)
             clip_id = basename(clip_id)
-            my_csv[clip_id] = [graund_truth, label_from_frame, label_from_audio]
+            my_csv[clip_id] = [ground_truth, label_from_frame, label_from_audio]
             print(len(my_csv), "/", total)
 
         with open('lables_late_fusion' + self.feature_name + '.csv', 'w') as f:
@@ -145,11 +147,11 @@ class VideoClassifier:
                 f.write(str(k) + "," + str(my_csv[k][0]) + "," + str(my_csv[k][1]) + "," + str(my_csv[k][2]) + "\n")
         return my_csv
 
-    def generate_data_for_early_fusion(self, total_files):
+    def generate_data_for_early_fusion(self, files, name):
         window_size = int(self.feature_name.split("_")[1])
         frame_to_discard = ceil(window_size / 2 / 40)
         my_csv = []
-        for file in total_files:
+        for file in tqdm(files):
             clip_id_temp = file.split(".")[0]
             # '/user/vlongobardi/AFEW/aligned/Train/Angry/012738600.csv'
             # '/user/vlongobardi/early_feature/framefeature/Train/Angry/012738600_0.dat'
@@ -159,16 +161,16 @@ class VideoClassifier:
             audio_features_path = glob.glob(base_path.replace("framefeature", self.feature_name))
             frames_features_path.sort(key=lambda x: int(x.split("_")[-1].split(".")[0]))
             audio_features_path.sort(key=lambda x: int(x.split("_")[-1].split(".")[0]))
-            graund_truth = basename(dirname(clip_id_temp))
+            ground_truth = basename(dirname(clip_id_temp))
             clip_id = basename(clip_id_temp)
 
             # discard video frames based on window size
             frames_features_path = frames_features_path[frame_to_discard:]
 
             for index, audio in enumerate(audio_features_path):
-                my_csv.append([clip_id, graund_truth, frames_features_path[index], audio])
+                my_csv.append([clip_id, ground_truth, frames_features_path[index], audio])
 
-        with open('features_path_early_fusion_' + self.feature_name + '.csv', 'w') as f:
+        with open('features_path_early_fusion_' + name + "_" + self.feature_name + '.csv', 'w') as f:
             f.write("clip_id, ground_truth, frame_label, audio_label\n")
             for line in my_csv:
                 f.write(line[0] + "," + line[1] + "," + line[2] + "," + line[3] + "\n")
@@ -177,7 +179,7 @@ class VideoClassifier:
     def generate_feature_for_early_fusion(self, files):
         """ generate only single frame features (no audio) """
         video_feature_name = "early_feature/framefeature"
-        for file_name in files:
+        for file_name in tqdm(files):
             features = self.fc.get_feature(file_name)
             base_path = file_name.split(".")[0].replace("AFEW/aligned", video_feature_name)
             for index, feature in enumerate(features):
@@ -194,10 +196,10 @@ class VideoClassifier:
             features = np.zeros((batch_size, 2 * len(self.classes))).astype('float')
             for i in range(c, c + batch_size):
                 clip_id = basename(list_files[i].split(".")[0])
-                graund_truth, label_from_frame, label_from_audio = self.labels_late_fusion[clip_id]
+                ground_truth, label_from_frame, label_from_audio = self.labels_late_fusion[clip_id]
                 features[i - c] = np.append(self.lb.transform(np.array([label_from_audio])),
                                             self.lb.transform(np.array([label_from_frame])))
-                labels.append(graund_truth)
+                labels.append(ground_truth)
             c += batch_size
             if c + batch_size > len(list_files):
                 c = 0
@@ -216,15 +218,14 @@ class VideoClassifier:
             features = [np.zeros((batch_size, self.fc.time_step, 1024)).astype('float'),  # frame f.
                         np.zeros((batch_size, self.fc.time_step, self.feature_number)).astype('float')]  # audio f.
             for i in range(c, c + batch_size):
-                # "/user/vlongobardi/early_feature/framefeature/Train/Sad/011603980_0.dat"
-                with open(list_files[i], 'rb') as f:
+                clip_id, ground_truth, frame_feature_path, audio_feature_path = list_files[i]
+                with open(frame_feature_path, 'rb') as f:
                     features[0][i - c] = pickle.loads(f.read())
-                arff_file = list_files[i].replace("framefeature", self.feature_name).replace("dat", "arff")
+                # arff_file = list_files[i].replace("framefeature", self.feature_name).replace("dat", "arff")
                 # arff_feature = np.array(from_arff_to_feture(arff_file)).reshape(1, self.feature_number)
                 # features[1][i - c] = np.repeat(arff_feature, self.fc.time_step, axis=0)
-                features[1][i - c] = np.array(from_arff_to_feture(arff_file)).reshape(1, self.feature_number)
-                graund_truth = list_files[i].split("/")[-2]
-                labels.append(graund_truth)
+                features[1][i - c] = np.array(from_arff_to_feture(audio_feature_path)).reshape(1, self.feature_number)
+                labels.append(ground_truth)
             c += batch_size
             if c + batch_size > len(list_files):
                 c = 0
@@ -276,14 +277,14 @@ class VideoClassifier:
         try:
             audio_path = path.split(".")[0].replace("AFEW/aligned", self.feature_name)
             audio_pred = self.ac.clip_classification(audio_path)
-            graund_truth, frame_pred = self.fc.predict(path)
+            ground_truth, frame_pred = self.fc.predict(path)
             sample = np.append(self.lb.transform(np.array([audio_pred])), self.lb.transform(np.array([frame_pred])))
             # print("\n\n######## 1", sample.shape, sample)
             pred = self.model.predict(sample.reshape((1, 14)))
         except:
             traceback.print_exc()
             print("\n\n######## 3", sample.shape, sample)
-        return self.lb.inverse_transform(pred)[0], audio_pred, frame_pred, graund_truth
+        return self.lb.inverse_transform(pred)[0], audio_pred, frame_pred, ground_truth
 
     def print_confusion_matrix(self, path):
 
