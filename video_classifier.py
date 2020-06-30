@@ -391,5 +391,5 @@ if __name__ == "__main__":
                       "e3": "emobase2010_300", "i3": "IS09_emotion_300",
                       "e6": "emobase2010_600", "i6": "IS09_emotion_600"}
 
-        arff_path = arff_paths[sys.argv[2]]
+        arff_path = arff_paths[sys.argv[1]]
         vc = VideoClassifier(train_mode="early_fusion", feature_name=arff_path)

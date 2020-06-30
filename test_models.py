@@ -1,7 +1,7 @@
 import tensorflow as tf
+from keras import regularizers
 from keras.models import Sequential, Model
-from keras.layers import Dropout, Dense, TimeDistributed, Input, Concatenate, BatchNormalization, Flatten, LSTMCell, \
-    Reshape, Lambda, regularizers
+from keras.layers import Dropout, Dense, TimeDistributed, Input, Concatenate, BatchNormalization, Lambda
 
 from Models.RNN_stacked_attention import RNNStackedAttention
 
