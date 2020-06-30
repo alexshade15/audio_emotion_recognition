@@ -233,7 +233,7 @@ class VideoClassifier:
                 random.shuffle(list_files)
                 if mode == "eval":
                     break
-            labels = self.lb.transform(np.array(labels)).reshape((1, 16, 7))
+            labels = self.lb.transform(np.array(labels)).reshape((16, 1, 7))
             yield features, labels
 
     def train(self, train_files, val_files, batch_size, epochs, learning_rate, myopt, model, generator):

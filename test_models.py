@@ -178,6 +178,6 @@ def frame_model(feature_number=384, weight_decay=1e-5):
     x = TimeDistributed(Dense(100, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay)))(combined)
     x = TimeDistributed(Dropout(0.5))(x)
     x = TimeDistributed(Dense(7, activation='softmax', kernel_regularizer=regularizers.l2(weight_decay)))(x)
-    x = Lambda(lambda y: tf.reduce_mean(y, axis=1))(x)
+    # x = Lambda(lambda y: tf.reduce_mean(y, axis=1))(x)
 
     return Model(inputs=[frame_input, audio_input], outputs=x)
