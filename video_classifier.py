@@ -63,10 +63,11 @@ class VideoClassifier:
                         csv_reader = csv.reader(f)
                         for row in csv_reader:
                             self.labels_late_fusion[row[0]] = [row[1], row[2], row[3]]
-            elif self.train_mode == "early_fusion" and not len(glob.glob("/user/vlongobardi/framefeature_16_50/*/*/*")):
-                print("\n##### GENERATING FEATURES FOR EARLY FUSION... #####")
-                self.generate_feature_for_early_fusion(t_files + v_files)
-                print("\n##### FEATURES GENERATED! #####")
+            elif self.train_mode == "early_fusion":
+                if not len(glob.glob("/user/vlongobardi/early_feature/framefeature/*/*/*.dat")):
+                    print("\n##### GENERATING FEATURES FOR EARLY FUSION... #####")
+                    self.generate_feature_for_early_fusion(t_files + v_files)
+                    print("\n##### FEATURES GENERATED! #####")
 
                 if not exists('features_path_early_fusion_' + self.feature_name + '.csv'):
                     print("\n##### GENERATING CSV FOR EARLY FUSION... #####")
