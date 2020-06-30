@@ -28,7 +28,7 @@ class VideoClassifier:
 
     def __init__(self, train_mode="late_fusion", video_model_path=None, audio_model_path="", time_step=16,
                  base_path="/user/vlongobardi/AFEW/aligned/", feature_name="emobase2010_300"):
-
+        self.time_step = time_step
         self.train_mode = train_mode
         if train_mode == "late_fusion":
             # ac in late serve per generare csv quando necessario e fare la predict per la matrice di confusione
@@ -69,7 +69,7 @@ class VideoClassifier:
                     self.generate_feature_for_early_fusion(t_files + v_files)
                     print("\n##### FEATURES GENERATED! #####")
 
-                if not exists('features_path_early_fusion_' + self.feature_name + '.csv'):
+                if not exists('features_path_early_fusion_train_' + self.feature_name + '.csv'):
                     print("\n##### GENERATING CSV FOR EARLY FUSION... #####")
                     self.csv_early_fusion = {
                         "train": self.generate_data_for_early_fusion(t_files, "train"),
@@ -82,8 +82,14 @@ class VideoClassifier:
                         with open('features_path_early_fusion_' + name + "_" + self.feature_name + '.csv', 'r') as f:
                             f.readline()
                             csv_reader = csv.reader(f)
-                            for row in csv_reader:
-                                self.csv_early_fusion[name] = [row[0], row[1], row[2], row[3]]
+                            if self.time_step == 1:
+                                for row in csv_reader:
+                                    self.csv_early_fusion[name] = [row[0], row[1], row[2], row[3]]
+                            else:
+                                for clip_id, ground_truth, frame_label, audio_label in csv_reader:
+                                    if clip_id not in self.csv_early_fusion:
+                                        self.csv_early_fusion[clip_id] = []
+                                    self.csv_early_fusion[clip_id].append(ground_truth, frame_label, audio_label)
 
             skips = 0
             iters = 5
@@ -151,7 +157,10 @@ class VideoClassifier:
     def generate_data_for_early_fusion(self, files, name):
         window_size = int(self.feature_name.split("_")[1])
         frame_to_discard = ceil(window_size / 2 / 40)
-        my_csv = []
+        if self.time_step == 1:
+            my_csv = []
+        else:
+            my_csv = {}
         for file in tqdm(files):
             clip_id_temp = file.split(".")[0]
             # '/user/vlongobardi/AFEW/aligned/Train/Angry/012738600.csv'
@@ -169,12 +178,20 @@ class VideoClassifier:
             frames_features_path = frames_features_path[frame_to_discard:]
 
             for index, audio in enumerate(audio_features_path):
-                my_csv.append([clip_id, ground_truth, frames_features_path[index], audio])
+                if self.time_step == 1:
+                    my_csv.append([clip_id, ground_truth, frames_features_path[index], audio])
+
+                my_csv[clip_id] = [ground_truth, frames_features_path[index], audio]
 
         with open('features_path_early_fusion_' + name + "_" + self.feature_name + '.csv', 'w') as f:
             f.write("clip_id, ground_truth, frame_label, audio_label\n")
-            for line in my_csv:
-                f.write(line[0] + "," + line[1] + "," + line[2] + "," + line[3] + "\n")
+            if self.time_step == 1:
+                for line in my_csv:
+                    f.write(line[0] + "," + line[1] + "," + line[2] + "," + line[3] + "\n")
+            else:
+                for key in my_csv:
+                    for line in my_csv[key]:
+                        f.write(key + "," + line[0] + "," + line[1] + "," + line[2] + "\n")
         return my_csv
 
     def generate_feature_for_early_fusion(self, files):
@@ -388,10 +405,14 @@ if __name__ == "__main__":
         vc = VideoClassifier(train_mode="late_fusion", audio_model_path=model_path)
         # vc.print_confusion_matrix("/user/vlongobardi/AFEW/aligned/Val")
     else:
+        if "t" in sys.argv[1]:
+            time_step = 16
+        else:
+            time_step = 1
         print("EARLY")
         arff_paths = {"e1": "emobase2010_100", "i1": "IS09_emotion_100",
                       "e3": "emobase2010_300", "i3": "IS09_emotion_300",
                       "e6": "emobase2010_600", "i6": "IS09_emotion_600"}
 
-        arff_path = arff_paths[sys.argv[1]]
-        vc = VideoClassifier(train_mode="early_fusion", feature_name=arff_path)
+        arff_path = arff_paths[sys.argv[1].remove("t")]
+        vc = VideoClassifier(train_mode="early_fusion", time_step=time_step, feature_name=arff_path)
