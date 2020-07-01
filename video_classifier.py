@@ -51,6 +51,33 @@ class VideoClassifier:
             t_files = glob.glob(base_path + "Train" + "/*/*csv")
             v_files = glob.glob(base_path + "Val" + "/*/*csv")
             self.csv_fusion = self.generate_feature(t_files, v_files)
+
+            train_remove = [
+                '004442200', '012430040', '005159337', '013746920', '001113440', '003556960', '001114600', '010340320',
+                '001058600', '005924440', '003316894', '012554740', '003715767', '011603080', '003403857', '012943150',
+                '004924334', '012335760', '000429620', '013224647', '012421760', '013836768', '004329400', '012317840',
+                '003056160', '002144977', '002516934', '014129160', '010942127', '012024040', '001604560', '005207737',
+                '011435400', '014643120', '011441497', '001305880', '003849000', '001805320', '010128697', '005149560',
+                '000606080', '000326680', '002148094', '002522600', '002629654', '010404607', '002830120',
+                '003605560']
+
+            val_remove = [
+                '000322047', '000142325', '000502567', '001016054', '001731150', '004020574', '001012520', '004524480',
+                '001635160', '001404920', '005153760', '010301054', '000407350', '012246840', '004438800', '014127400',
+                '001247040', '005948960', '004743240', '002033320', '004512014', '001201800', '013432750', '013338000',
+                '003443960', '013431600', '000919327', '001507520', '000803520', '001817054', '003904000', '000247600',
+                '003445440', '010320007', '014735000', '010010080', '011341440', '005700400', '002730640', '000329320',
+                '001130680', '002137920', '011411334', '004415287', '000403327', '001703120', '001010160',
+                '000451280']
+
+            for key in self.csv_fusion["train"]:
+                if key in train_remove:
+                    del self.csv_fusion["train"][key]
+
+            for key in self.csv_fusion["val"]:
+                if key in val_remove:
+                    del self.csv_fusion["val"][key]
+
             self.do_training(t_files, v_files)
 
     def do_training(self, t_files, v_files):
@@ -64,7 +91,7 @@ class VideoClassifier:
             models = [a_model1, a_model2, a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3,
                       a_model6, a_model6_1, a_model6_2, a_model7, a_model7_1]
         else:
-            models = [early_model_1, early_model_2]
+            models = [early_model_time_step]  # , early_model_1, early_model_2]
         models_name = [x.__name__ for x in models]
         for index, model in enumerate(models):
             for opt in opts:
@@ -145,11 +172,12 @@ class VideoClassifier:
                     with open('features_path_early_fusion_' + name + "_" + self.feature_name + '.csv', 'r') as f:
                         f.readline()
                         csv_reader = csv.reader(f)
-                        csv_early_fusion[name] = []
                         if self.time_step == 1:
+                            csv_early_fusion[name] = []
                             for row in csv_reader:
                                 csv_early_fusion[name].append([row[0], row[1], row[2], row[3]])
                         else:
+                            csv_early_fusion[name] = {}
                             for clip_id, ground_truth, frame_label, audio_label in csv_reader:
                                 if clip_id not in csv_early_fusion[name]:
                                     csv_early_fusion[name][clip_id] = []
@@ -196,6 +224,8 @@ class VideoClassifier:
 
             # discard video frames based on window size
             frames_features_path = frames_features_path[frame_to_discard:]
+            if len(frames_features_path) < 16 and self.time_step == 1:
+                continue
 
             for index, audio in enumerate(audio_features_path):
                 if self.time_step == 1:
@@ -275,7 +305,7 @@ class VideoClassifier:
     def early_gen_time_step(self, list_files, batch_size, mode="train"):
         c = 0
         if mode == "train":
-            clip_ids = list_files.keys()
+            clip_ids = list(list_files.keys())
             random.shuffle(clip_ids)
         while True:
             labels = []
@@ -288,14 +318,17 @@ class VideoClassifier:
 
                 # ground_truth, frame_feature_path, audio_feature_path = list_files[clip_id]
 
-                print("sono ordinati??\n", video_info)  # sono ordinati? Supponiamo di si
+                # print("sono ordinati??\n", video_info)  # sono ordinati? Supponiamo di si
+                if len(video_info) - self.time_step < 0:
+                    print("len video info, time_step", len(video_info), self.time_step)
+                    print(clip_id, ground_truth)
                 start = random.randint(0, len(video_info) - self.time_step)
 
                 for index, elem in enumerate(video_info[start:self.time_step + start]):
                     ground_truth, frame_path, audio_path = elem
                     with open(frame_path, 'rb') as f:
-                        print("pickle.loads(f.read()).shape", pickle.loads(f.read()).shape)
-                        features[0][i - c][index].append(pickle.loads(f.read()))
+                        # print("pickle.loads(f.read()).shape", pickle.loads(f.read()).shape)
+                        features[0][i - c][index] = pickle.loads(f.read()).reshape(1024)
                     features[1][i - c][index] = np.array(from_arff_to_feture(audio_path)).reshape(self.feature_num)
                 labels.append(ground_truth)
             c += batch_size
@@ -329,7 +362,7 @@ class VideoClassifier:
         cb = [ModelCheckpoint(filepath=str("video_models/videoModel_{val_accuracy:.4f}_epoch{epoch:02d}" + model_name),
                               monitor="val_accuracy")]
         # cb.append(TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True))
-        history = model.fit_generator(train_gen, validation_data=val_gen, epochs=train_data["epochs"],
+        history = model.fit_generator(train_gen, validation_data=val_gen, epochs=train_data["epoch"],
                                       steps_per_epoch=(no_of_training_images // train_data["batch_size"]),
                                       validation_steps=(no_of_val_images // train_data["batch_size"]),
                                       workers=1, verbose=1, callbacks=cb)
@@ -340,7 +373,7 @@ class VideoClassifier:
         print("\nVal Loss =", history.history['val_loss'])
 
         model_name = "videoModel_" + str(history.history['val_accuracy'][-1]) + "_epoch" + str(
-            train_data["epochs"]) + model_name
+            train_data["epoch"]) + model_name
 
         print("\n\nModels saved as:", model_name)
         print("Train:", history.history['accuracy'][-1], "Val:", history.history['val_accuracy'][-1])

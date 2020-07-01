@@ -195,8 +195,8 @@ def early_model_2(feature_number=384, weight_decay=1e-5):
     return Model(inputs=[frame_input, audio_input], outputs=x)
 
 def early_model_time_step(feature_number=384, weight_decay=1e-5):
-    audio_input = Input(shape=(1, feature_number))
-    frame_input = Input(shape=(1, 1024))
+    audio_input = Input(shape=(16, feature_number))
+    frame_input = Input(shape=(16, 1024))
     combined = Concatenate()([frame_input, audio_input])
 
     x = TimeDistributed(Dense(100, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay)))(combined)
