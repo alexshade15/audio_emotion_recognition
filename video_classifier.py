@@ -145,14 +145,15 @@ class VideoClassifier:
                     with open('features_path_early_fusion_' + name + "_" + self.feature_name + '.csv', 'r') as f:
                         f.readline()
                         csv_reader = csv.reader(f)
+                        csv_early_fusion[name] = []
                         if self.time_step == 1:
                             for row in csv_reader:
-                                csv_early_fusion[name] = [row[0], row[1], row[2], row[3]]
+                                csv_early_fusion[name].append([row[0], row[1], row[2], row[3]])
                         else:
                             for clip_id, ground_truth, frame_label, audio_label in csv_reader:
-                                if clip_id not in csv_early_fusion:
-                                    csv_early_fusion[clip_id] = []
-                                    csv_early_fusion[clip_id].append([ground_truth, frame_label, audio_label])
+                                if clip_id not in csv_early_fusion[name]:
+                                    csv_early_fusion[name][clip_id] = []
+                                csv_early_fusion[name][clip_id].append([ground_truth, frame_label, audio_label])
             return csv_early_fusion
 
     def _generate_data_for_late_fusion(self, total_files):
@@ -199,8 +200,10 @@ class VideoClassifier:
             for index, audio in enumerate(audio_features_path):
                 if self.time_step == 1:
                     my_csv.append([clip_id, ground_truth, frames_features_path[index], audio])
-
-                my_csv[clip_id] = [ground_truth, frames_features_path[index], audio]
+                else:
+                    if clip_id not in my_csv.keys():
+                        my_csv[clip_id] = []
+                    my_csv[clip_id].append([ground_truth, frames_features_path[index], audio])
 
         with open('features_path_early_fusion_' + name + "_" + self.feature_name + '.csv', 'w') as f:
             f.write("clip_id, ground_truth, frame_label, audio_label\n")
@@ -272,21 +275,33 @@ class VideoClassifier:
     def early_gen_time_step(self, list_files, batch_size, mode="train"):
         c = 0
         if mode == "train":
-            random.shuffle(list_files)
+            clip_ids = list_files.keys()
+            random.shuffle(clip_ids)
         while True:
             labels = []
             features = [np.zeros((batch_size, self.time_step, 1024)).astype('float'),  # frame f.
                         np.zeros((batch_size, self.time_step, self.feature_num)).astype('float')]  # audio f.
             for i in range(c, c + batch_size):
-                clip_id, ground_truth, frame_feature_path, audio_feature_path = list_files[i]
-                with open(frame_feature_path, 'rb') as f:
-                    features[0][i - c] = pickle.loads(f.read())
-                features[1][i - c] = np.array(from_arff_to_feture(audio_feature_path)).reshape(1, self.feature_num)
+                clip_id = clip_ids[i]
+                video_info = list_files[clip_id]
+                ground_truth = video_info[0][0]
+
+                # ground_truth, frame_feature_path, audio_feature_path = list_files[clip_id]
+
+                print("sono ordinati??\n", video_info)  # sono ordinati? Supponiamo di si
+                start = random.randint(0, len(video_info) - self.time_step)
+
+                for index, elem in enumerate(video_info[start:self.time_step + start]):
+                    ground_truth, frame_path, audio_path = elem
+                    with open(frame_path, 'rb') as f:
+                        print("pickle.loads(f.read()).shape", pickle.loads(f.read()).shape)
+                        features[0][i - c][index].append(pickle.loads(f.read()))
+                    features[1][i - c][index] = np.array(from_arff_to_feture(audio_path)).reshape(self.feature_num)
                 labels.append(ground_truth)
             c += batch_size
-            if c + batch_size > len(list_files):
+            if c + batch_size > len(clip_ids):
                 c = 0
-                random.shuffle(list_files)
+                random.shuffle(clip_ids)
                 if mode == "eval":
                     break
             labels = self.lb.transform(np.array(labels)).reshape((16, 7))
