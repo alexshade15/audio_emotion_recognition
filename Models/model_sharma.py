@@ -1,8 +1,7 @@
 import os
-
+import tensorflow as tf
 from keras import Model, Input, regularizers
 from keras.layers import TimeDistributed, LSTMCell, Reshape, Dense, Lambda, Dropout
-import tensorflow as tf
 from Models.RNN_stacked_attention import RNNStackedAttention
 from Models.seresnet50 import SEResNet50
 
@@ -19,8 +18,11 @@ basepath = "/user/vlongobardi/"
 def SharmaNet(input, train_all_baseline=False, classification=True, weight_decay=1e-5, weights='afew'):
     cells = [LSTMCell(1024, kernel_regularizer=regularizers.l2(weight_decay),
                       recurrent_regularizer=regularizers.l2(weight_decay))]
+
+    input_shape = input
+    input_layer = Input(input_shape)
     # print(basepath)
-    # create instance of SEesNet50, num classes will be num_classes+1 because the weight to load were trained on FER (8 classes), AFEW is 7
+    # create instance of SEesNet50, num classes is num_classes+1, weight trained on FER (8 classes), AFEW 7
     if weights == 'afew':
         # print("afew weights")
         weights_path = os.path.join(basepath, "SENET_best_checkpoint_AFEW.hdf5")
@@ -38,15 +40,14 @@ def SharmaNet(input, train_all_baseline=False, classification=True, weight_decay
         # print("recola weights")
         classes = 2
 
-    seres50 = SEResNet50(input_shape=(input._keras_shape[2], input._keras_shape[3], input._keras_shape[4]),
-                         classes=classes)
+    seres50 = SEResNet50(input_shape=(input_shape[1:]), classes=classes)
     # load FER weights
 
     seres50.load_weights(weights_path)
     # pop the last classification layers
     # seres50.summary()
     backbone = Model(seres50.input, seres50.layers[-4].output)
-    x = TimeDistributed(backbone, input_shape=(input._keras_shape))(input)
+    x = TimeDistributed(backbone, input_shape=(input_shape))(input_layer)
 
     T, H, W, C = [int(x) for x in x.shape[1:]]
     reshape_dim = (T, H * W, C)
@@ -76,13 +77,14 @@ def SharmaNet(input, train_all_baseline=False, classification=True, weight_decay
 
     x = Lambda(lambda y: tf.reduce_mean(y, axis=1))(x)
 
-    model = Model(input, x)
+    model = Model(input_layer, x)
     model.layers[1].trainable = train_all_baseline
 
     return model
 
 
 if __name__ == "__main__":
-    x = Input((16, 224, 224, 3))
-    model = SharmaNet(x)
-    # print(model.summary())
+    i = Input((16, 224, 224, 3))
+    in_sh = (16, 224, 224, 3)
+    model = SharmaNet(in_sh)
+    print(model.summary())
