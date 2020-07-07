@@ -1,9 +1,11 @@
 import os
 import tensorflow as tf
+from tensorflow.compat.v1 import enable_eager_execution
+#enable_eager_execution()
 from keras import Model, Input, regularizers
 from keras.layers import TimeDistributed, LSTMCell, Reshape, Dense, Lambda, Dropout
-from Models.RNN_stacked_attention import RNNStackedAttention
-from Models.seresnet50 import SEResNet50
+from RNN_stacked_attention import RNNStackedAttention
+from seresnet50 import SEResNet50
 
 #
 # Original implementation:
@@ -15,16 +17,15 @@ from Models.seresnet50 import SEResNet50
 basepath = "/user/vlongobardi/"
 
 
-def SharmaNet(input, train_all_baseline=False, classification=True, weight_decay=1e-5, weights='afew'):
+def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight_decay=1e-5, weights='afew'):
     cells = [LSTMCell(1024, kernel_regularizer=regularizers.l2(weight_decay),
                       recurrent_regularizer=regularizers.l2(weight_decay))]
 
-    input_shape = input
     input_layer = Input(input_shape)
     # print(basepath)
     # create instance of SEesNet50, num classes is num_classes+1, weight trained on FER (8 classes), AFEW 7
     if weights == 'afew':
-        # print("afew weights")
+        print("afew weights")
         weights_path = os.path.join(basepath, "SENET_best_checkpoint_AFEW.hdf5")
         classes = 7
     if weights == 'raf':

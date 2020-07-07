@@ -5,7 +5,7 @@ import keras.backend as K
 from keras.utils.generic_utils import to_list, unpack_singleton, has_arg
 from keras.engine import InputSpec
 from keras.engine.base_layer import _collect_input_shape
-from Models.StackedCellFeedback import StackedCellFeedback
+from StackedCellFeedback import StackedCellFeedback
 from keras.layers.recurrent import _standardize_args
 from keras.utils.generic_utils import to_list, unpack_singleton, has_arg
 

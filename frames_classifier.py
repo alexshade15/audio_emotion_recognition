@@ -3,7 +3,6 @@ from keras import Input, Model
 
 from Dataset.Dataset_Utils.datagen import DataGenerator
 from Dataset.Dataset_Utils.augmenter import NoAug
-from Dataset.Dataset_Utils.old_files_afew.dataset_tools import split_video
 from Models.model_sharma import SharmaNet
 from inference import Inference
 

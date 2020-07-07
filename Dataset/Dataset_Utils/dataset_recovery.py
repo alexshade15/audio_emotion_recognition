@@ -100,10 +100,10 @@ def recover_dataset(aligned_dataset_dir, moved_invalid_dir, videos_dir, detectio
                     shutil.move(aligned_folder, aligned_dataset_dir)
                     shutil.move(os.path.join(recover_dir_openface, video_name_orginal + '.csv'), aligned_dataset_dir)
                 else:
-                    #print("video "+video_name_orginal+" NOT substituded with a recovered version")
+                    print("video "+video_name_orginal+" NOT substituded with a recovered version")
                 shutil.rmtree(recover_dir_video)
             else:
-                #print("video {0} is good with {1} of invalid frames".format(video_name_orginal, percentage_discarded))
+                print("video {0} is good with {1} of invalid frames".format(video_name_orginal, percentage_discarded))
 
     return recovered_list
 

@@ -155,7 +155,7 @@ def SEResNet50(include_top=True, weights='vggface',
         bn_axis = 1
 
     bn_eps = 0.0001
-
+    #print("------------------\n\n\n", img_input, input_shape, lpf_size)
     x = LPFConv2D(
         64, (7, 7), use_bias=False, strides=(2, 2), padding='same',
         name='conv1/7x7_s2', lpf_size=lpf_size)(img_input)

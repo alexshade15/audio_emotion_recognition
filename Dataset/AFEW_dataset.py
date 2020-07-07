@@ -61,7 +61,7 @@ class AFEW_dataset:
         # openface preprocessing
         try:
             with open(os.path.join(cache_path_partition, cache_file_name_openface_done), 'rb') as f:
-                #print("Openface preprocess already done")
+                print("Openface preprocess already done")
 
         except FileNotFoundError:
             #print('File not found,creating...')
