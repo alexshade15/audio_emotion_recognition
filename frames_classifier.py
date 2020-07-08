@@ -8,7 +8,7 @@ from inference import Inference
 
 
 class FramesClassifier:
-    def __init__(self, weights_path="/user/vlongobardi/checkpoint_best.hdf5", time_step=50, overlap=.5):
+    def __init__(self, weights_path="/user/vlongobardi/checkpoint_best.hdf5", time_step=16, overlap=.5):
         self.time_step = time_step
         self.model = SharmaNet(Input(shape=(self.time_step, 224, 224, 3)), classification=True, weights='afew')
         self.model.load_weights(weights_path)

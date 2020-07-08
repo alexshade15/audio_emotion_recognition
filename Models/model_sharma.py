@@ -79,14 +79,16 @@ def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight
 
     x = Lambda(lambda y: tf.reduce_mean(y, axis=1))(x)
 
-    audio_tensors = Rnn_attention.get_audio_tensors()
-    print("Rnn_attention, audio_tensors:", len(audio_tensors))
-    print(audio_tensors)
+    input_tensors = Rnn_attention.get_audio_tensors()
+    # print("Rnn_attention, audio_tensors:", len(input_tensors))
+    # print(input_tensors)
 
-    #model = Model([input_layer, audio_input], x)
-    #model.layers[1].trainable = train_all_baseline
+    input_tensors.append(input_layer)
 
-    #return model
+    model = Model(input_tensors, x)
+    model.layers[1].trainable = train_all_baseline
+
+    return model
 
 
 if __name__ == "__main__":

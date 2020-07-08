@@ -1,23 +1,25 @@
-from tqdm import tqdm
-import glob
-import sys
-import random
 import csv
+import glob
 import pickle
-import numpy as np
+import random
+import sys
 from math import ceil
 from os.path import basename, exists, dirname
 
-from keras.models import load_model
+import numpy as np
 from keras.callbacks import ModelCheckpoint  # , TensorBoard
+from keras.models import load_model
 from keras.optimizers import Adam, SGD
-
-from sklearn.preprocessing import LabelBinarizer
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
+from sklearn.preprocessing import LabelBinarizer
+from tqdm import tqdm
 
+from Dataset.Dataset_Utils.datagen import DataGenerator as DataGen
 from Dataset.Dataset_Utils.dataset_tools import print_cm
-from frames_classifier import FramesClassifier
+from Dataset.Dataset_Utils.augmenter import NoAug
+
 from audio_classifier import AudioClassifier, from_arff_to_feture, get_feature_number
+from frames_classifier import FramesClassifier
 from test_models import *
 
 classes = ["Angry", "Disgust", "Fear", "Happy", "Neutral", "Sad", "Surprise"]
@@ -46,7 +48,7 @@ class VideoClassifier:
 
         if video_model_path is not None:
             self.model = load_model(video_model_path)
-            print("VC loaded successfully", video_model_path)
+            print("VideoClassifier loaded successfully", video_model_path)
         else:
             t_files = glob.glob(base_path + "Train" + "/*/*csv")
             v_files = glob.glob(base_path + "Val" + "/*/*csv")
@@ -58,13 +60,13 @@ class VideoClassifier:
         iters = 5
         bs = 16
         ep = 50
-        opts = ["SGD"] #"Adam", "SGD"]
+        opts = ["SGD"]  # "Adam", "SGD"]
         lrs = [0.1, 0.01, 0.001, 0.0001]
         if self.train_mode == "late_fusion":
             models = [a_model1, a_model2, a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3,
                       a_model6, a_model6_1, a_model6_2, a_model7, a_model7_1]
         else:
-            models = [early_model_1] #early_model_time_step]  # , early_model_1, early_model_2]
+            models = [early_model_1]  # early_model_time_step]  # , early_model_1, early_model_2]
         models_name = [x.__name__ for x in models]
         for index, model in enumerate(models):
             for opt in opts:
@@ -157,28 +159,37 @@ class VideoClassifier:
                                 csv_early_fusion[name][clip_id].append([ground_truth, frame_label, audio_label])
             if self.time_step > 1:
                 train_remove = [
-                    '004442200', '012430040', '005159337', '013746920', '001113440', '003556960', '001114600', '010340320',
-                    '001058600', '005924440', '003316894', '012554740', '003715767', '011603080', '003403857', '012943150',
-                    '004924334', '012335760', '000429620', '013224647', '012421760', '013836768', '004329400', '012317840',
-                    '003056160', '002144977', '002516934', '014129160', '010942127', '012024040', '001604560', '005207737',
-                    '011435400', '014643120', '011441497', '001305880', '003849000', '001805320', '010128697', '005149560',
+                    '004442200', '012430040', '005159337', '013746920', '001113440', '003556960', '001114600',
+                    '010340320',
+                    '001058600', '005924440', '003316894', '012554740', '003715767', '011603080', '003403857',
+                    '012943150',
+                    '004924334', '012335760', '000429620', '013224647', '012421760', '013836768', '004329400',
+                    '012317840',
+                    '003056160', '002144977', '002516934', '014129160', '010942127', '012024040', '001604560',
+                    '005207737',
+                    '011435400', '014643120', '011441497', '001305880', '003849000', '001805320', '010128697',
+                    '005149560',
                     '000606080', '000326680', '002148094', '002522600', '002629654', '010404607', '002830120',
                     '003605560']
-
                 val_remove = [
-                    '000322047', '000142325', '000502567', '001016054', '001731150', '004020574', '001012520', '004524480',
-                    '001635160', '001404920', '005153760', '010301054', '000407350', '012246840', '004438800', '014127400',
-                    '001247040', '005948960', '004743240', '002033320', '004512014', '001201800', '013432750', '013338000',
-                    '003443960', '013431600', '000919327', '001507520', '000803520', '001817054', '003904000', '000247600',
-                    '003445440', '010320007', '014735000', '010010080', '011341440', '005700400', '002730640', '000329320',
+                    '000322047', '000142325', '000502567', '001016054', '001731150', '004020574', '001012520',
+                    '004524480',
+                    '001635160', '001404920', '005153760', '010301054', '000407350', '012246840', '004438800',
+                    '014127400',
+                    '001247040', '005948960', '004743240', '002033320', '004512014', '001201800', '013432750',
+                    '013338000',
+                    '003443960', '013431600', '000919327', '001507520', '000803520', '001817054', '003904000',
+                    '000247600',
+                    '003445440', '010320007', '014735000', '010010080', '011341440', '005700400', '002730640',
+                    '000329320',
                     '001130680', '002137920', '011411334', '004415287', '000403327', '001703120', '001010160',
                     '000451280']
 
                 for key in train_remove:
                     del csv_early_fusion["train"][key]
 
-                for key in  val_remove:
-                        del csv_early_fusion["val"][key]
+                for key in val_remove:
+                    del csv_early_fusion["val"][key]
             return csv_early_fusion
 
     def _generate_data_for_late_fusion(self, total_files):
@@ -254,9 +265,9 @@ class VideoClassifier:
                     serialized_feature = pickle.dumps(feature, protocol=0)
                     f.write(serialized_feature)
 
-    def late_gen(self, list_files, batch_size, mode="train"):
+    def late_gen(self, list_files, batch_size, mode="Train"):
         c = 0
-        if mode == "train":
+        if mode == "Train" or mode == "Val":
             random.shuffle(list_files)
         while True:
             labels = []
@@ -276,9 +287,9 @@ class VideoClassifier:
             labels = self.lb.transform(np.array(labels))
             yield features, labels
 
-    def early_gen(self, list_files, batch_size, mode="train"):
+    def early_gen(self, list_files, batch_size, mode="Train"):
         c = 0
-        if mode == "train":
+        if mode == "Train" or mode == "Val":
             random.shuffle(list_files)
         while True:
             labels = []
@@ -299,34 +310,37 @@ class VideoClassifier:
             labels = self.lb.transform(np.array(labels)).reshape((16, 1, 7))
             yield features, labels
 
-    def early_gen_time_step(self, list_files, batch_size, mode="train"):
+    def early_gen_time_step(self, list_files, batch_size, mode="Train"):
         c = 0
-        if mode == "train":
+        if mode == "Train" or mode == "Val":
             clip_ids = list(list_files.keys())
             random.shuffle(clip_ids)
         while True:
             labels = []
-            features = [np.zeros((batch_size, self.time_step, 1024)).astype('float'),  # frame f.
-                        np.zeros((batch_size, self.time_step, self.feature_num)).astype('float')]  # audio f.
+            features = [np.zeros((batch_size, 1, self.feature_num)).astype('float')] * self.time_step
+            features.append(np.zeros((batch_size, self.time_step, 224, 224, 3)).astype('float'))
+
             for i in range(c, c + batch_size):
                 clip_id = clip_ids[i]
                 video_info = list_files[clip_id]
                 ground_truth = video_info[0][0]
+                # '/user/vlongobardi/AFEW/aligned/Train/Angry/012738600.csv'
+                csv_path = '/user/vlongobardi/AFEW/aligned/Mode/GroundTruth/ID.csv'
+                csv_path = csv_path.replace("Mode", mode).replace("GroundTruth", ground_truth).replace("ID", clip_id)
+                images = DataGen(csv_path, '', 1, 31, NoAug(), 16, 1, 12, test=True)[0][0]
+                first_frame_num = int(video_info[0][1].split("_")[-1].split["."][0])
 
-                # ground_truth, frame_feature_path, audio_feature_path = list_files[clip_id]
-
-                # print("sono ordinati??\n", video_info)  # sono ordinati? Supponiamo di si
                 if len(video_info) - self.time_step < 0:
                     print("len video info, time_step", len(video_info), self.time_step)
                     print(clip_id, ground_truth)
-                start = random.randint(0, len(video_info) - self.time_step)
+                    # exception: the video hasn't enought frames
 
+                # select a random beginngin for the start of the clip
+                start = random.randint(0, len(video_info) - self.time_step)
                 for index, elem in enumerate(video_info[start:self.time_step + start]):
-                    ground_truth, frame_path, audio_path = elem
-                    with open(frame_path, 'rb') as f:
-                        # print("pickle.loads(f.read()).shape", pickle.loads(f.read()).shape)
-                        features[0][i - c][index] = pickle.loads(f.read()).reshape(1024)
-                    features[1][i - c][index] = np.array(from_arff_to_feture(audio_path)).reshape(self.feature_num)
+                    ground_truth, _, audio_path = elem
+                    features[-1][i - c][index] = images[first_frame_num+start+index]
+                    features[index][i - c] = np.array(from_arff_to_feture(audio_path)).reshape(1, self.feature_num)
                 labels.append(ground_truth)
             c += batch_size
             if c + batch_size > len(clip_ids):
@@ -347,8 +361,8 @@ class VideoClassifier:
         model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
         model.summary()
 
-        train_gen = train_data["generator"](train_files, train_data["batch_size"])
-        val_gen = train_data["generator"](val_files, train_data["batch_size"])
+        train_gen = train_data["generator"](train_files, train_data["batch_size"], "Train")
+        val_gen = train_data["generator"](val_files, train_data["batch_size"], "Val")
         no_of_training_images = len(train_files)
         no_of_val_images = len(val_files)
 
