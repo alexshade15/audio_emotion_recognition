@@ -19,7 +19,7 @@ def x_calculation(tensors):
 
 class StackedCellFeedback(StackedRNNCells):
 
-    def __init__(self,cells,feature_shape,weight_decay = 1e-5, feature_audio=1582):
+    def __init__(self,cells,feature_shape,weight_decay = 1e-5, audio_shape=(1582,)):
         super(StackedCellFeedback,self).__init__(cells)
         self.attention_maps = []
         self.attention_layers = [Dense(feature_shape[1],activation='relu',kernel_regularizer=regularizers.l2(weight_decay)), Dense(feature_shape[0],activation='softmax',kernel_regularizer=regularizers.l2(weight_decay))]
@@ -27,7 +27,8 @@ class StackedCellFeedback(StackedRNNCells):
         self.feature_shape = feature_shape
         self.attention_maps = []
         self.time = 0
-        self.feature_audio = feature_audio
+        self.audio_shape = audio_shape
+        self.audio_tensors = []
 
 
     def attention_model(self, inputs):
@@ -75,7 +76,8 @@ class StackedCellFeedback(StackedRNNCells):
             if counter_cells == 0:
                 inputs = x_calculation([inputs,self.current_map])
                 #print("\nFUSION ATTENTION", inputs)
-                audio_input = Input(shape=(self.feature_audio,))
+                audio_input = Input(shape=self.audio_shape)
+                self.audio_tensors.append(audio_input)
                 inputs = Concatenate(name='fusion1')([inputs, audio_input])
                 inputs = Dense(2048, activation='relu', name='fusion2')(inputs)
                 #print("§§§§§§§§§§§§§§§§§§§§§§§§------------------- FUSION AUDIO: OK -------------------§§§§§§§§§§§§§§§§§§§§§§§§")

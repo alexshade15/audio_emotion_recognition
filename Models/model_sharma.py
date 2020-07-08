@@ -1,11 +1,11 @@
-import os
-import tensorflow as tf
 from tensorflow.compat.v1 import enable_eager_execution
 #enable_eager_execution()
+import os
+import tensorflow as tf
 from keras import Model, Input, regularizers
 from keras.layers import TimeDistributed, LSTMCell, Reshape, Dense, Lambda, Dropout
-from RNN_stacked_attention import RNNStackedAttention
-from seresnet50 import SEResNet50
+from Models.RNN_stacked_attention import RNNStackedAttention
+from Models.seresnet50 import SEResNet50
 
 #
 # Original implementation:
@@ -40,8 +40,8 @@ def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight
         weights_path = os.path.join(basepath, "SENET_50_RECOLA_from_RAF.hdf5")
         # print("recola weights")
         classes = 2
-
-    seres50 = SEResNet50(input_shape=(input_shape[1:]), classes=classes)
+    #print("SEResNet50(input_shape:", input_shape[1:], (None, input_shape[1:]))
+    seres50 = SEResNet50(input_shape=input_shape[1:], classes=classes)
     # load FER weights
 
     seres50.load_weights(weights_path)
@@ -61,7 +61,8 @@ def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight
     dense_h0 = Dense(1024, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay))(features_mean_layer)
     dense_c0 = Dense(1024, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay))(features_mean_layer)
 
-    Rnn_attention = RNNStackedAttention(reshape_dim, cells, return_sequences=True)
+    #audio_input = Input(shape=(1582,))
+    Rnn_attention = RNNStackedAttention(reshape_dim, cells, return_sequences=True, unroll=True)
     x = Rnn_attention(x, initial_state=[dense_h0, dense_c0])  # (BS,TS,lstm_out)
     x = TimeDistributed(
         Dense(100, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay), name='ff_logit_lstm'))(x)
@@ -78,10 +79,14 @@ def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight
 
     x = Lambda(lambda y: tf.reduce_mean(y, axis=1))(x)
 
-    model = Model(input_layer, x)
-    model.layers[1].trainable = train_all_baseline
+    audio_tensors = Rnn_attention.get_audio_tensors()
+    print("Rnn_attention, audio_tensors:", len(audio_tensors))
+    print(audio_tensors)
 
-    return model
+    #model = Model([input_layer, audio_input], x)
+    #model.layers[1].trainable = train_all_baseline
+
+    #return model
 
 
 if __name__ == "__main__":
