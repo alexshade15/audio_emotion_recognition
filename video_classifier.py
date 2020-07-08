@@ -17,6 +17,7 @@ from tqdm import tqdm
 from Dataset.Dataset_Utils.datagen import DataGenerator as DataGen
 from Dataset.Dataset_Utils.dataset_tools import print_cm
 from Dataset.Dataset_Utils.augmenter import NoAug
+from Models.model_sharma import SharmaNet
 
 from audio_classifier import AudioClassifier, from_arff_to_feture, get_feature_number
 from frames_classifier import FramesClassifier
@@ -66,7 +67,7 @@ class VideoClassifier:
             models = [a_model1, a_model2, a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3,
                       a_model6, a_model6_1, a_model6_2, a_model7, a_model7_1]
         else:
-            models = [early_model_1]  # early_model_time_step]  # , early_model_1, early_model_2]
+            models = [SharmaNet((16, 224, 224, 3))]  # early_model_time_step]  # , early_model_1, early_model_2]
         models_name = [x.__name__ for x in models]
         for index, model in enumerate(models):
             for opt in opts:
