@@ -5,7 +5,7 @@ import keras.backend as K
 from keras.utils.generic_utils import to_list, unpack_singleton, has_arg
 from keras.engine import InputSpec
 from keras.engine.base_layer import _collect_input_shape
-from StackedCellFeedback import StackedCellFeedback
+from Models.StackedCellFeedback import StackedCellFeedback
 from keras.layers.recurrent import _standardize_args
 from keras.utils.generic_utils import to_list, unpack_singleton, has_arg
 
@@ -120,9 +120,9 @@ class RNNStackedAttention(RNN):
         return output
 
     def __call__(self, inputs, initial_state=None, constants=None, **kwargs):
-        print("\n\n\n\n__CALL__")
-        traceback.print_stack()
-        print("\n\n\n\n")
+        #print("\n\n\n\n__CALL__")
+        #traceback.print_stack()
+        #print("\n\n\n\n")
         inputs, initial_state, constants = _standardize_args(
             inputs, initial_state, constants, self._num_constants)
 
@@ -188,9 +188,9 @@ class RNNStackedAttention(RNN):
             return [K.tile(initial_state, [1, self.cell.state_size])]
 
     def call(self, inputs, mask=None, training=None, initial_state=None, constants=None):
-        print("\n\n\n\nCALL")
-        traceback.print_stack()
-        print("\n\n\n\n")
+        #print("\n\n\n\nCALL")
+        #traceback.print_stack()
+        #print("\n\n\n\n")
         if not isinstance(initial_state, (list, tuple, type(None))):
             initial_state = [initial_state]
         if not isinstance(constants, (list, tuple, type(None))):
