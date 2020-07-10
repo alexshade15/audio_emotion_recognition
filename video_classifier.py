@@ -2,11 +2,11 @@ import csv
 import glob
 import random
 import sys
-from math import ceil
+from math import ceil, floor
 from os.path import basename, exists, dirname
 
 import numpy as np
-from keras.callbacks import ModelCheckpoint  # , TensorBoard
+from keras.callbacks import ModelCheckpoint, TensorBoard, LearningRateScheduler
 from keras.models import load_model
 from keras.optimizers import Adam, SGD
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
@@ -55,11 +55,11 @@ class VideoClassifier:
 
     def do_training(self, t_files, v_files):
         skips = 0
-        iters = 5
+        iters = 1
         bs = 16
-        ep = 50
+        ep = 150
         opts = ["Adam", "SGD"]
-        lrs = [0.1, 0.01, 0.001, 0.0001]
+        lrs = [0.001]  # [0.1, 0.01, 0.001, 0.0001]
         if self.train_mode == "late_fusion":
             models = [a_model1, a_model2, a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3,
                       a_model6, a_model6_1, a_model6_2, a_model7, a_model7_1]
@@ -319,18 +319,22 @@ class VideoClassifier:
             train_data["model_name"]) + "_Feature" + self.feature_name + "_" + str(
             train_data["iteration"]) + "_" + self.train_mode + ".h5"
 
+        def custom_scheduler(epoch):
+            return 0.001 / 10 * floor(epoch / 20)
+
         cb = [ModelCheckpoint(filepath=str("video_models/videoModel_{val_accuracy:.4f}_epoch{epoch:02d}" + model_name),
-                              monitor="val_accuracy")]
-        # cb.append(TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True))
+                              monitor="val_accuracy"),
+              TensorBoard(log_dir="logs_video_" + self.train_mode, write_graph=True, write_images=True),
+              LearningRateScheduler(custom_scheduler)]
         history = model.fit_generator(train_gen, validation_data=val_gen, epochs=train_data["epoch"],
                                       steps_per_epoch=(no_of_training_images // train_data["batch_size"]),
                                       validation_steps=(no_of_val_images // train_data["batch_size"]),
                                       workers=1, verbose=1, callbacks=cb)
         # score = model.evaluate_generator(test_gen, no_of_test_images // batch_size)
-        print("\n\nTrain Accuracy =", history.history['accuracy'])
-        print("\nVal Accuracy =", history.history['val_accuracy'])
-        print("\n\nTrain Loss =", history.history['loss'])
-        print("\nVal Loss =", history.history['val_loss'])
+        print("\n\nTrain_Accuracy =", history.history['accuracy'])
+        print("\nVal_Accuracy =", history.history['val_accuracy'])
+        print("\n\nTrain_Loss =", history.history['loss'])
+        print("\nVal_Loss =", history.history['val_loss'])
 
         model_name = "videoModel_" + str(history.history['val_accuracy'][-1]) + "_epoch" + str(
             train_data["epoch"]) + model_name
@@ -358,7 +362,6 @@ class VideoClassifier:
         stats.append(np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=2))
         stats.append(accuracy_score(ground_truths, predictions))
         stats.append(classification_report(ground_truths, predictions))
-
         print("###" + name + " Results###")
         for index, elem in enumerate(stats):
             if index < 2:
@@ -418,8 +421,34 @@ if __name__ == "__main__":
                       "e6": "emobase2010_600", "i6": "IS09_emotion_600"}
         vc = VideoClassifier(train_mode="early_fusion", time_step=16, feature_name=arff_paths[sys.argv[1]])
 
-from video_classifier import VideoClassifier
-vmp = "video_models/videoModel_0.5245_epoch48_lr0.0001_OptAdam_Modela_model5_2_Featureemobase2010_full_3_late_fusion.h5"
-amp = "audio_models/audioModel_0.3668_epoch45_lr0.001_OptSGD_Modela_model7_Featureemobase2010_full_3.h5"
-vc = VideoClassifier("late_fusion", vmp, amp, feature_name="emobase2010_full")
-vc.print_confusion_matrix("/user/vlongobardi/AFEW/aligned/Train")
+# from video_classifier import VideoClassifier
+#
+# vmp = "video_models/videoModel_0.5245_epoch48_lr0.0001_OptAdam_Modela_model5_2_Featureemobase2010_full_3_late_fusion.h5"
+# amp = "audio_models/audioModel_0.3668_epoch45_lr0.001_OptSGD_Modela_model7_Featureemobase2010_full_3.h5"
+# vmp = "video_models/videoModel_0.5136_epoch48_lr0.001_OptSGD_Modela_model_7_Featureemobase2010_600_0_late_fusion.h5"
+# amp = "audio_models/audioModel_0.2953_epoch38_lr0.001_OptAdam_Modela_model6_2_Featureemobase2010_600_2.h5"
+# vc = VideoClassifier("late_fusion", vmp, amp, feature_name="emobase2010_full")
+# vc.print_confusion_matrix("/user/vlongobardi/AFEW/aligned/Val")
+#
+# import matplotlib.pylab as plt
+# import csv
+#
+#
+# def get_csv(name):
+#     labels = {}
+#     with open(name + '.csv', 'r') as f:  # + self.feature_name + '.csv', 'r') as f:
+#         f.readline()
+#         csv_reader = csv.reader(f)
+#         for row in csv_reader:
+#             labels[row[0]] = [row[1], row[2], row[3]]
+#     return labels
+#
+#
+# def my_plot(a, b):
+#     plt.plot(a, label="Train")
+#     plt.plot(b, label="Val")
+#     plt.legend()
+#     plt.xlabel('Epochs')
+#     plt.ylabel('Accuracy')
+#     plt.ylim(0, 1)
+#     plt.show()
