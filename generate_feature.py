@@ -1,6 +1,7 @@
 import subprocess
 from os import listdir, path
 import sys
+from tqdm import tqdm
 
 
 def to_milliseconds(t_stamp):
@@ -38,7 +39,7 @@ def from_avi_to_wav():
     """ For each video-clip generate a corresponding audio-clip """
     avi_dir = "/user/vlongobardi/AFEW/videos/"
     wav_dir = "/user/vlongobardi/temp_wav/"
-    for file_path in generate_files(avi_dir):
+    for file_path in tqdm(generate_files(avi_dir)):
         cmd = "ffmpeg -i " + avi_dir + file_path + ".avi -ab 128k -ac 2 -ar 48000 -vn " + wav_dir + file_path + ".wav"
         # #print(name, "\n\n\n")
         subprocess.call(cmd, shell=True)
@@ -61,7 +62,7 @@ def from_wav_to_clips(frame_size=300, frame_step=150, offset=0):
     """ For each audio-clip generate a sub-audio-clips with specific frame size and overlapping """
     wav_dir = "/user/vlongobardi/temp_wav/"
     clip_dir = "/user/vlongobardi/temp_clips/"
-    for file_path in generate_files(wav_dir):
+    for file_path in tqdm(generate_files(wav_dir)):
         cmd = "ffmpeg -y -i " + wav_dir + file_path + ".wav temp_output.wav"
 
         bash_output = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -84,7 +85,7 @@ def from_clips_to_feature(cfg_file="emobase2010.conf", frame_size=300, middle_fe
         base_dir = "/user/vlongobardi/temp_clips/"
     feature_dir = "/user/vlongobardi/" + middle_feature_dir + cfg_file.split(".")[0] + "_" + str(frame_size) + "/"
     config_path = "/user/vlongobardi/opensmile-2.3.0/config/" + cfg_file
-    for file_path in generate_files(base_dir):
+    for file_path in tqdm(generate_files(base_dir)):
         cmd = "SMILExtract -C " + config_path + " -I " + base_dir + file_path + ".wav -O " + feature_dir + file_path + \
               ".arff"
         subprocess.call(cmd, shell=True)

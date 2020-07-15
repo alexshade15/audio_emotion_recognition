@@ -17,8 +17,12 @@ from Models.seresnet50 import SEResNet50
 basepath = "/user/vlongobardi/"
 
 
-def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight_decay=1e-5, weights='afew'):
-    cells = [LSTMCell(1024, kernel_regularizer=regularizers.l2(weight_decay),
+def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight_decay=1e-5, weights='afew', dim=0):
+    if dim > 2:
+        cell_dim = 1024
+    else:
+        cell_dim = 3630
+    cells = [LSTMCell(cell_dim, kernel_regularizer=regularizers.l2(weight_decay),
                       recurrent_regularizer=regularizers.l2(weight_decay))]
 
     input_layer = Input(input_shape)
@@ -58,8 +62,8 @@ def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight
     features_mean_layer = Lambda(lambda y: tf.reduce_mean(y, axis=2))(x)
     features_mean_layer = Lambda(lambda y: tf.reduce_mean(y, axis=1))(features_mean_layer)
 
-    dense_h0 = Dense(1024, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay))(features_mean_layer)
-    dense_c0 = Dense(1024, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay))(features_mean_layer)
+    dense_h0 = Dense(cell_dim, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay))(features_mean_layer)
+    dense_c0 = Dense(cell_dim, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay))(features_mean_layer)
 
     #audio_input = Input(shape=(1582,))
     Rnn_attention = RNNStackedAttention(reshape_dim, cells, return_sequences=True, unroll=True)
