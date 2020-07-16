@@ -1,5 +1,3 @@
-from tensorflow.compat.v1 import enable_eager_execution
-#enable_eager_execution()
 import os
 import tensorflow as tf
 from keras import Model, Input, regularizers
@@ -44,7 +42,7 @@ def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight
         weights_path = os.path.join(basepath, "SENET_50_RECOLA_from_RAF.hdf5")
         # print("recola weights")
         classes = 2
-    #print("SEResNet50(input_shape:", input_shape[1:], (None, input_shape[1:]))
+    # print("SEResNet50(input_shape:", input_shape[1:], (None, input_shape[1:]))
     seres50 = SEResNet50(input_shape=input_shape[1:], classes=classes)
     # load FER weights
 
@@ -58,16 +56,14 @@ def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight
     reshape_dim = (T, H * W, C)
     x = Reshape(reshape_dim)(x)
 
-    # mlp for lstm initialization
     features_mean_layer = Lambda(lambda y: tf.reduce_mean(y, axis=2))(x)
     features_mean_layer = Lambda(lambda y: tf.reduce_mean(y, axis=1))(features_mean_layer)
 
     dense_h0 = Dense(cell_dim, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay))(features_mean_layer)
     dense_c0 = Dense(cell_dim, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay))(features_mean_layer)
 
-    #audio_input = Input(shape=(1582,))
     Rnn_attention = RNNStackedAttention(reshape_dim, cells, return_sequences=True, unroll=True)
-    x = Rnn_attention(x, initial_state=[dense_h0, dense_c0])  # (BS,TS,lstm_out)
+    x = Rnn_attention(x, initial_state=[dense_h0, dense_c0])
     x = TimeDistributed(
         Dense(100, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay), name='ff_logit_lstm'))(x)
     x = TimeDistributed(Dropout(0.5))(x)
@@ -76,7 +72,7 @@ def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight
         n_classes = 7
         x = TimeDistributed(
             Dense(n_classes, activation='softmax', kernel_regularizer=regularizers.l2(weight_decay), name='ff_logit'))(
-            x)  # line 405
+            x)
     else:
         n_outs = 2
         x = Dense(n_outs, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay))(x)
@@ -84,9 +80,6 @@ def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight
     x = Lambda(lambda y: tf.reduce_mean(y, axis=1))(x)
 
     input_tensors = Rnn_attention.get_audio_tensors()
-    # print("Rnn_attention, audio_tensors:", len(input_tensors))
-    # print(input_tensors)
-
     input_tensors.append(input_layer)
 
     model = Model(input_tensors, x)
