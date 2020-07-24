@@ -6,6 +6,7 @@ from keras.utils.generic_utils import to_list, unpack_singleton, has_arg
 from keras.engine import InputSpec
 from keras.engine.base_layer import _collect_input_shape
 from Models.StackedCellFeedback import StackedCellFeedback
+from keras.layers import LSTMCell
 from keras.layers.recurrent import _standardize_args
 from keras.utils.generic_utils import to_list, unpack_singleton, has_arg
 import traceback
@@ -15,11 +16,10 @@ class RNNStackedAttention(RNN):
 
     def __init__(self, input_shape, cell, return_sequences=False, return_state=False, go_backwards=False,
                  stateful=False, unroll=False, audio_shape=(1582,), dim=0, **kwargs):
-        self.shape_lstm = (None, input_shape[0], input_shape[2])
         super().__init__(cell, return_sequences, return_state, go_backwards, stateful, unroll, **kwargs)
-
         self.cell = StackedCellFeedback(cell, (input_shape[1], input_shape[2]), audio_shape=audio_shape, dim=dim)
         self.dim = dim
+        self.shape_lstm = (None, input_shape[0], input_shape[2])
 
     def get_audio_tensors(self):
         return self.cell.audio_tensors
@@ -52,7 +52,7 @@ class RNNStackedAttention(RNN):
                             'You can build it manually via: `layer.build(batch_input_shape)`')
 
                 # print("CALL BUILD", "\n", input_shapes, "\n", input_shapes[0], "\ncall:")
-                if self.dim > 0:
+                if 0 < self.dim < 3:
                     input_shapes[0] = (None, 3, 3630)
                 self.build(unpack_singleton(input_shapes))
                 self.built = True

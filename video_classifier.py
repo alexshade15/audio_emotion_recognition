@@ -47,8 +47,13 @@ class VideoClassifier:
         self.lb.fit_transform(np.array(classes))
 
         if video_model_path is not None:
-            self.model = load_model(video_model_path)
-            print("VideoClassifier loaded successfully", video_model_path)
+            if train_mode == "late_fusion":
+                self.model = load_model(video_model_path)
+                print("VideoClassifier loaded successfully", video_model_path)
+            else:
+                self.model = SharmaNet((self.time_step, 224, 224, 3), dim=self.model_type)
+                self.model.load_weights(video_model_path)
+                print("VideoClassifier loaded successfully", video_model_path)
         else:
             t_files = glob.glob(base_path + "Train" + "/*/*csv")
             v_files = glob.glob(base_path + "Val" + "/*/*csv")
@@ -60,11 +65,10 @@ class VideoClassifier:
         iters = 1
         bs = 16
         ep = 50
-        opts = ["Adam"]
-        lrs = [0.001]  # [0.1, 0.01, 0.001, 0.0001]
+        opts = ["SGD", "Adam"]
+        lrs = [0.001]
         if self.train_mode == "late_fusion":
-            models = [a_model1, a_model2, a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3,
-                      a_model6, a_model6_1, a_model6_2, a_model7, a_model7_1]
+            models = [a_model5_2, a_model5_3, a_model7, a_model7_1]
         else:
             models = [SharmaNet]
         models_name = [x.__name__ for x in models]
@@ -113,6 +117,7 @@ class VideoClassifier:
 
     def load_early_csv(self, dataset):
         csv_early_fusion = {}
+        print("Opening csv: features_path_early_fusion_" + dataset + "_" + self.feature_name + '.csv')
         with open('features_path_early_fusion_' + dataset + "_" + self.feature_name + '.csv', 'r') as f:
             f.readline()
             csv_reader = csv.reader(f)
@@ -232,9 +237,12 @@ class VideoClassifier:
 
     def early_gen(self, list_files, batch_size, mode="Train"):
         c = 0
+        clip_ids = list(list_files.keys())
         if mode == "Train" or mode == "Val":
-            clip_ids = list(list_files.keys())
             random.shuffle(clip_ids)
+            m = mode
+        else:
+            m = "Val"
         while True:
             labels = []
             features = [np.zeros((batch_size, self.feature_num)).astype('float')] * self.time_step
@@ -245,7 +253,7 @@ class VideoClassifier:
                 video_info = list_files[clip_id]
                 ground_truth = video_info[0][0]
                 csv_path = '/user/vlongobardi/AFEW/aligned/Mode/GroundTruth/ID.csv'
-                csv_path = csv_path.replace("Mode", mode).replace("GroundTruth", ground_truth).replace("ID", clip_id)
+                csv_path = csv_path.replace("Mode", m).replace("GroundTruth", ground_truth).replace("ID", clip_id)
                 images = DataGen(csv_path, '', 1, 31, NoAug(), 16, 1, 12, test=True)[0][0][0]
                 first_frame_num = int(video_info[0][1].split("_")[-1].split(".")[0])
 
@@ -263,7 +271,6 @@ class VideoClassifier:
                 for index, elem in enumerate(video_info[start:self.time_step + start]):
                     ground_truth, _, audio_path = elem
                     features[-1][i - c][index] = images[first_frame_num + start + index]
-                    # print("SHAPE", np.array(from_arff_to_feture(audio_path)).shape, audio_path)
                     features[index][i - c] = np.array(from_arff_to_feture(audio_path)).reshape(self.feature_num, )
                 labels.append(ground_truth)
             c += batch_size
@@ -272,7 +279,8 @@ class VideoClassifier:
                 random.shuffle(clip_ids)
                 if mode == "eval":
                     break
-            labels = self.lb.transform(np.array(labels)).reshape((16, 7))
+            # print(labels)
+            labels = self.lb.transform(np.array(labels)).reshape((batch_size, 7))
             yield features, labels
 
     def train(self, train_files, val_files, train_data, model):
@@ -298,10 +306,11 @@ class VideoClassifier:
             print(0.01 / 10 ** (floor(epoch / 20) + 1))
             return 0.01 / 10 ** (floor(epoch / 20) + 1)
 
-        cb = [ModelCheckpoint(filepath=str("video_models/videoModel_{val_accuracy:.4f}_epoch{epoch:02d}" + model_name),
-                              monitor="val_accuracy"),
-              TensorBoard(log_dir="Rearly_big_logs_video_" + self.train_mode, write_graph=True, write_images=True),
-              LearningRateScheduler(custom_scheduler)]
+        cb = [ModelCheckpoint(filepath=str("video_models_early_weights/videoModel_{val_accuracy:.4f}_epoch{epoch:02d}" + model_name),
+                              monitor="val_accuracy", save_weights_only=True),
+              TensorBoard(log_dir="Rearly_big_logs_video_" + self.train_mode, write_graph=True, write_images=True)]
+        if self.train_mode == "early_fusion":
+            cb += [LearningRateScheduler(custom_scheduler)]
         history = model.fit_generator(train_gen, validation_data=val_gen, epochs=train_data["epoch"],
                                       steps_per_epoch=(no_of_training_images // train_data["batch_size"]),
                                       validation_steps=(no_of_val_images // train_data["batch_size"]),
@@ -316,16 +325,19 @@ class VideoClassifier:
 
         print("\n\nModels saved as:", model_name)
         print("Train:", history.history['accuracy'][-1], "Val:", history.history['val_accuracy'][-1])
-        model.save("video_models/" + model_name)
+        #model.save("video_models/" + model_name)
+        model.save_weights("video_models_early_weights/" + model_name)
 
         return model
 
     def print_stats(self, ground_truths, predictions, name):
         cm = confusion_matrix(ground_truths, predictions, self.classes)
-        print("###" + name + " Results###")
-        print_cm(cm, self.classes, "\n")
-        print_cm(np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=2), self.classes, "\n")
-        print("Accuracy score: ", accuracy_score(ground_truths, predictions), "\n")
+        print("###" + name + " Results###\n")
+        print_cm(cm, self.classes)
+        print("\n\n")
+        print_cm(np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=2), self.classes)
+        print("\n\n")
+        print("Accuracy score: ", accuracy_score(ground_truths, predictions), "\n\n")
         print("Report")
         print(classification_report(ground_truths, predictions))
         print("#################################################################end###\n\n\n")
@@ -338,9 +350,10 @@ class VideoClassifier:
 
         if self.train_mode == "early_fusion":
             csv_fusion = self.load_early_csv("val")
+            print("CSV loaded", len(csv_fusion))
             gen = self.early_gen(csv_fusion, 1, "eval")
             for x in gen:
-                ground_truths.append(x[1])
+                ground_truths.append(self.lb.inverse_transform(np.array([x[1]]))[0])
                 pred = self.model.predict(x[0])
                 pred = self.lb.inverse_transform(pred)[0]
                 predictions.append(pred)
@@ -375,16 +388,17 @@ if __name__ == "__main__":
         print("LATE")
         # "audio_models/audioModel_0.2953_epoch14_lr0.001_OptAdam_Modela_model6_1_Featureemobase2010_600_0.h5"
         model_path = "audio_models/audioModel_0.3668_epoch37_lr0.001_OptSGD_Modela_model7_Featureemobase2010_full_1.h5"
+        model_path = "audio_models/audioModel_0.3696_epoch60_lr0.001_OptSGD_Modela_model7_Featureemobase2010_full_2.h5"
         vc = VideoClassifier(train_mode="late_fusion", audio_model_path=model_path)
         # vc.print_confusion_matrix("/user/vlongobardi/AFEW/aligned/Val")
     else:
-        mt = 2
+        mt = 1
         print("EARLY")
         print("Model_type:", mt)
         arff_paths = {"e1": "emobase2010_100", "i1": "IS09_emotion_100",
                       "e3": "emobase2010_300", "i3": "IS09_emotion_300",
                       "e6": "emobase2010_600", "i6": "IS09_emotion_600"}
-        for k in ["e6"]:
+        for k in ["e1", 'e3', 'e6']:
             vc = VideoClassifier(train_mode="early_fusion", time_step=16, feature_name=arff_paths[k], model_type=mt)
 
 

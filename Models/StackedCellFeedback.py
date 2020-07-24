@@ -17,8 +17,8 @@ def x_calculation(tensors):
 
 class StackedCellFeedback(StackedRNNCells):
 
-    def __init__(self, cells, feature_shape, weight_decay=1e-5, audio_shape=(1582,), dim=0):
-        super(StackedCellFeedback, self).__init__(cells)
+    def __init__(self, cells, feature_shape, weight_decay=1e-5, audio_shape=(1582,), dim=0, **kwargs):
+        super().__init__(cells, **kwargs)
         self.attention_maps = []
         self.attention_layers = [
             Dense(feature_shape[1], activation='relu', kernel_regularizer=regularizers.l2(weight_decay)),
@@ -85,7 +85,7 @@ class StackedCellFeedback(StackedRNNCells):
                 audio_input = Input(shape=self.audio_shape)
                 self.audio_tensors.append(audio_input)
                 inputs = Concatenate(name='fusion1')([inputs, audio_input])
-                if self.dim == 0:
+                if self.dim == 0 or self.dim == 3:
                     inputs = Dense(2048, activation='relu', name='fusion2')(inputs)
             # print("has_arg(cell.call, 'constants'):", has_arg(cell.call, 'constants'))
             if has_arg(cell.call, 'constants'):

@@ -16,7 +16,7 @@ basepath = "/user/vlongobardi/"
 
 
 def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight_decay=1e-5, weights='afew', dim=0):
-    if dim > 2:
+    if dim < 2:
         cell_dim = 1024
     else:
         cell_dim = 3630

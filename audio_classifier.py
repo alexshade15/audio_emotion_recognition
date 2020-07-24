@@ -62,13 +62,12 @@ class AudioClassifier:
         else:
             # fine tuning
             skips = 0
-            iters = 5
+            iters = 10
             bs = 16
-            ep = 50
-            opts = ["Adam", "SGD"]
-            lrs = [0.1, 0.01, 0.001, 0.0001]
-            models = [a_model1, a_model2, a_model3, a_model4, a_model5, a_model5_1, a_model5_2, a_model5_3, a_model6,
-                      a_model6_1, a_model6_2, a_model7, a_model7_1]
+            ep = 150
+            opts = ["SGD"]
+            lrs = [0.1, 0.01, 0.001, 0.0001, 0.00001] #, 0.0001]
+            models = [a_model7, a_model7_1]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
                 for opt in opts:
@@ -196,7 +195,7 @@ class AudioClassifier:
 
         cb = [ModelCheckpoint(filepath="audio_models/audioModel_{val_accuracy:.4f}_epoch{epoch:02d}" + model_name,
                               monitor="val_accuracy")]
-        # cb.append(TensorBoard(log_dir="logs_audio", write_graph=True, write_images=True))
+        cb.append(TensorBoard(log_dir="FULL_AUDIO_LOG", write_graph=True, write_images=True))
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
                                       validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
                                       verbose=1, callbacks=cb)
@@ -215,9 +214,8 @@ class AudioClassifier:
 
 
 if __name__ == "__main__":
-    try:
-        audio_path = sys.argv[1]
-    except:
-        audio_path = "/user/vlongobardi/emobase2010_300/"
-    print("######################## AUDIO PATH: ", audio_path)
-    ac = AudioClassifier(base_path=audio_path)
+    audio_path = {"e1": "emobase2010_100", "e3": "emobase2010_300", "e6": "emobase2010_600", "ef": "emobase2010_full"}
+    for e in ["ef"]: #, "e3", "e6"]:
+        ap = "/user/vlongobardi/late_feature/" + audio_path[e] + "/"
+        print("######################## AUDIO PATH: ", ap)
+        ac = AudioClassifier(base_path=ap)
