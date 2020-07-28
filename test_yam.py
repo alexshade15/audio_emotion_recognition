@@ -4,6 +4,7 @@ import librosa
 import keras
 from keras.utils import to_categorical, Sequence
 from keras.optimizers import Adagrad
+from keras.callbacks import EarlyStopping
 from keras_yamnet.yamnet import YAMNet
 from keras_yamnet.preprocessing import preprocess_input
 from tqdm import tqdm
@@ -166,28 +167,29 @@ def get_data_for_generator(feature_name="emobase2010_600", dataset="Train"):
     return datas, [path.split("/")[-2] for path in datas]
 
 
-feature_name = "emobase2010_600"
-X_train, y_train = get_data_for_generator(feature_name, "Train")
-X_val, y_val = get_data_for_generator(feature_name, "Val")
+if __name__ == "__main__":
+    feature_name = "emobase2010_600"
+    X_train, y_train = get_data_for_generator(feature_name, "Train")
+    X_val, y_val = get_data_for_generator(feature_name, "Val")
 
-samples_per_class = 5
-batches_per_epoch = 100
+    samples_per_class = 5
+    batches_per_epoch = 100
 
-sr = 48000
-win_sec = 0.6  # 0.1, 0.3, 0.6, full
-hop_sec = 0.3  # 0.05, 0.15, 0.3, n.a.
+    sr = 48000
+    win_sec = 0.6  # 0.1, 0.3, 0.6, full
+    hop_sec = 0.3  # 0.05, 0.15, 0.3, n.a.
 
-transform = Extractor()
+    transform = Extractor()
 
-train_gen = RandomAudioGenerator(X_train, y_train, samples_per_class, batches_per_epoch, sr=sr, win_sec=win_sec,
-                                 transform=transform, augment=augment)
-val_gen = SequentialAudioGenerator(X_val, y_val, batch_size=128, sr=sr, win_sec=win_sec, hop_sec=hop_sec,
-                                   transform=transform)
+    train_gen = RandomAudioGenerator(X_train, y_train, samples_per_class, batches_per_epoch, sr=sr, win_sec=win_sec,
+                                     transform=transform, augment=augment)
+    val_gen = SequentialAudioGenerator(X_val, y_val, batch_size=128, sr=sr, win_sec=win_sec, hop_sec=hop_sec,
+                                       transform=transform)
 
-model = YAMNet(weights='keras_yamnet/yamnet_conv.h5', classes=7, classifier_activation='softmax')
-model.compile(loss='categorical_crossentropy', optimizer=Adagrad(lr=0.003, decay=1e-6), metrics=['accuracy'])
-model.summary()
-callbacks = [keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=20, mode='max', restore_best_weights=True)]
+    model = YAMNet(weights='keras_yamnet/yamnet_conv.h5', classes=7, classifier_activation='softmax')
+    model.compile(loss='categorical_crossentropy', optimizer=Adagrad(lr=0.003, decay=1e-6), metrics=['accuracy'])
+    model.summary()
+    callbacks = [EarlyStopping(monitor='val_accuracy', patience=20, mode='max', restore_best_weights=True)]
 
-model.fit_generator(train_gen, steps_per_epoch=batches_per_epoch, epochs=5, callbacks=callbacks,
-                    validation_data=val_gen, shuffle=False, validation_steps=batches_per_epoch)
+    model.fit_generator(train_gen, steps_per_epoch=batches_per_epoch, epochs=5, callbacks=callbacks,
+                        validation_data=val_gen, shuffle=False, validation_steps=batches_per_epoch)
