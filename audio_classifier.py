@@ -66,7 +66,7 @@ class AudioClassifier:
             bs = 16
             ep = 150
             opts = ["SGD"]
-            lrs = [0.1, 0.01, 0.001, 0.0001, 0.00001] #, 0.0001]
+            lrs = [0.1, 0.01, 0.001, 0.0001, 0.00001]  # , 0.0001]
             models = [a_model7, a_model7_1]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
