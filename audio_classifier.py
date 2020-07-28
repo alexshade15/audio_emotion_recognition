@@ -194,8 +194,8 @@ class AudioClassifier:
                      "_Feature" + self.feature_name + "_" + str(self.iteration) + ".h5"
 
         cb = [ModelCheckpoint(filepath="audio_models/audioModel_{val_accuracy:.4f}_epoch{epoch:02d}" + model_name,
-                              monitor="val_accuracy")]
-        cb.append(TensorBoard(log_dir="FULL_AUDIO_LOG", write_graph=True, write_images=True))
+                              monitor="val_accuracy"),
+              TensorBoard(log_dir="FULL_AUDIO_LOG", write_graph=True, write_images=True)]
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
                                       validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
                                       verbose=1, callbacks=cb)
@@ -215,7 +215,7 @@ class AudioClassifier:
 
 if __name__ == "__main__":
     audio_path = {"e1": "emobase2010_100", "e3": "emobase2010_300", "e6": "emobase2010_600", "ef": "emobase2010_full"}
-    for e in ["ef"]: #, "e3", "e6"]:
+    for e in ["ef"]:  # , "e3", "e6"]:
         ap = "/user/vlongobardi/late_feature/" + audio_path[e] + "/"
         print("######################## AUDIO PATH: ", ap)
         ac = AudioClassifier(base_path=ap)
