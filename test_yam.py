@@ -161,7 +161,7 @@ def augment(x):
 
 
 def get_data_for_generator(feature_name="emobase2010_600", dataset="Train"):
-    base_path = "/user/vlongobardi/late_feature/" + feature_name + "/" + dataset
+    base_path = "/user/vlongobardi/late_feature/" + feature_name + "_wav/" + dataset
     datas = glob.glob(base_path + "/*/*.wav")
     return datas, [path.split("/")[-2] for path in datas]
 
