@@ -162,27 +162,24 @@ def augment(x):
 
 
 def get_data_for_generator(dataset="Train"):
-    map = {"Angry":0, "Disgust":1, "Fear":2, "Happy":3, "Neutral":4, "Sad":5, "Surprise":6}
+    map_gt = {"Angry": 0, "Disgust": 1, "Fear": 2, "Happy": 3, "Neutral": 4, "Sad": 5, "Surprise": 6}
     base_path = "/user/vlongobardi/temp_wav/" + dataset
     x = glob.glob(base_path + "/*/*.wav")
     y = []
     for path in x:
         gt = path.split("/")[-2]
-        y.append(map[gt])
+        y.append(map_gt[gt])
     return x, y
 
 
 if __name__ == "__main__":
     X_train, y_train = get_data_for_generator("Train")
     X_val, y_val = get_data_for_generator("Val")
-
     samples_per_class = 5
     batches_per_epoch = 100
-
     sr = 48000
     win_sec = 0.6  # 0.1, 0.3, 0.6, full
     hop_sec = 0.3  # 0.05, 0.15, 0.3, n.a.
-
     transform = Extractor()
 
     train_gen = RandomAudioGenerator(X_train, y_train, samples_per_class, batches_per_epoch, sr=sr, win_sec=win_sec,

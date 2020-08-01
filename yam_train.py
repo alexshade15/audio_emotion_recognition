@@ -3,10 +3,13 @@ import os
 import glob
 import random
 import operator
+import librosa
 import numpy as np
+from tqdm import tqdm
 
 from keras.models import load_model
-from keras.optimizers import Adam, SGD
+from keras.utils import to_categorical, Sequence
+from keras.optimizers import Adam, SGD, Adagrad
 from keras.callbacks import TensorBoard, ModelCheckpoint
 
 from sklearn.preprocessing import LabelBinarizer
@@ -15,40 +18,29 @@ from sklearn.metrics import confusion_matrix, accuracy_score, classification_rep
 from Dataset.Dataset_Utils.dataset_tools import print_cm
 from test_models import *
 
+from keras_yamnet.yamnet import YAMNet
+from keras_yamnet.preprocessing import preprocess_input
+
 
 def get_feature_number(feature_name):
-    if "IS09_emotion" in feature_name:
-        return 384
-    if "emobase2010" in feature_name:
-        return 1582
+    if "full" in feature_name:
+        return 387
+    elif "600" in feature_name:
+        return 58
+    elif "300" in feature_name:
+        return 28
+    elif "100" in feature_name:
+        return 8
     return None
 
 
-def from_arff_to_feture(arff_file):
-    try:
-        with open(arff_file, 'r') as f:
-            arff = f.read()
-            header, body = arff.split("@data")
-            features = body.split(",")
-            features.pop(0)
-            features.pop(-1)
-    except:
-        print("\n\n", arff_file, "\n\n")
-    return features
+def get_data_for_generator(dataset="Train"):
+    base_path = "/user/vlongobardi/temp_wav/" + dataset
+    x = glob.glob(base_path + "/*/*.wav")
+    return x, [path.split("/")[-2] for path in x]
 
 
-def get_all_arff(path):
-    arffs = []
-    folders = os.listdir(path)
-    for folder in folders:
-        sub_arff = os.listdir(path + "/" + folder)
-        for arff in sub_arff:
-            arffs.append(folder + "/" + arff)
-    return arffs
-
-
-class AudioClassifier:
-
+class YamNetClassifier:
     def __init__(self, model_path=None, classes=["Angry", "Disgust", "Fear", "Happy", "Neutral", "Sad", "Surprise"],
                  base_path="/user/vlongobardi/IS09_emotion/"):
 
@@ -57,17 +49,15 @@ class AudioClassifier:
         self.lb.fit_transform(np.array(classes))
         if model_path is not None:
             self.model = load_model(model_path)
-            # self.feature_number = int(model_path.split("_Feature")[-1].split("_")[0])
-            self.feature_number = get_feature_number(model_path.split("_Feature")[-1].split("_")[0])
+            self.feature_number = get_feature_number(model_path)
         else:
-            # fine tuning
             skips = 0
             iters = 10
             bs = 16
             ep = 150
-            opts = ["SGD"]
-            lrs = [0.1, 0.01, 0.001, 0.0001, 0.00001]  # , 0.0001]
-            models = [a_model7, a_model7_1]
+            opts = ["SGD", "Adam", "Adagrad"]
+            lrs = [0.1, 0.01, 0.001, 0.0001, 0.00001]
+            models = [YAMNet]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
                 for opt in opts:
@@ -99,63 +89,28 @@ class AudioClassifier:
                             # old_stdout = sys.stdout
                             # sys.stdout = log_file
 
-                            self.model = self.train_model(base_path + "Train", base_path + "Val", bs, ep, lr, opt,
-                                                          model(self.feature_number))
+                            self.model = self.train_model(base_path, bs, ep, lr, opt,
+                                                          model(weights='keras_yamnet/yamnet_conv.h5', classes=7,
+                                                                classifier_activation='softmax',
+                                                                input_shape=(self.feature_number, 64)))
                             # sys.stdout = old_stdout
                             # log_file.close()
 
-    def clip_classification(self, path_clip_beginngin):
-        all_predictions = {}
-        for c in self.classes:
-            all_predictions[c] = 0
-        for feature_vector_path in glob.glob(path_clip_beginngin + "*"):
-            pred, ground_truth = self.test_model(feature_vector_path)
-            all_predictions[pred] += 1
-        return max(all_predictions.items(), key=operator.itemgetter(1))[0]
-
-    def test_model(self, sample_path):
-        sample = np.array(from_arff_to_feture(sample_path)).reshape(1, self.feature_number)
-        ground_truth = sample_path.split("/")[-2]
-        prediction = self.model.predict(sample)
-        return self.lb.inverse_transform(prediction)[0], ground_truth
-
-    def print_confusion_matrix(self, val_path):
-        predictions = []
-        ground_truths = []
-        stats = []
-        for arff in get_all_arff(val_path):
-            pred, ground_truth = self.test_model(val_path + arff)
-            predictions.append(pred)
-            ground_truths.append(ground_truth)
-
-        cm = confusion_matrix(ground_truths, predictions, self.classes)
-        stats.append(cm)
-        stats.append(np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=2))
-        stats.append(accuracy_score(ground_truths, predictions))
-        stats.append(classification_report(ground_truths, predictions))
-
-        print("###Results###")
-        for index, elem in enumerate(stats):
-            if index < 2:
-                print_cm(elem, self.classes)
-            elif index == 2:
-                print("Accuracy score: ", elem)
-            else:
-                print("Report")
-                print(elem)
-            print("\n\n")
-
-    def data_gen(self, feature_folder, list_feature_vectors, batch_size, feature_number=1582, mode="train"):
+    def data_gen(self, list_feature_vectors, batch_size, mode="train"):
         c = 0
         if mode == "train":
             random.shuffle(list_feature_vectors)
         while True:
             labels = []
-            features = np.zeros((batch_size, feature_number)).astype('float')
+            features = np.zeros((batch_size, self.feature_number)).astype('float')
             for i in range(c, c + batch_size):
                 try:
-                    feature = from_arff_to_feture(feature_folder + "/" + list_feature_vectors[i])
-                    features[i - c] = np.array(feature)
+                    # check hop and win
+                    signal, sound_sr = librosa.load(list_feature_vectors[i], 48000)
+                    mel = preprocess_input(signal, sound_sr)
+                    print("Mel shape feature", mel.shape)
+
+                    features[i - c] = np.array(mel)
                     labels.append(list_feature_vectors[i].split("/")[0])
                 except:
                     print("\n\ni:", i, "\nc:", c, "\nist_feature_vectors[i]:", list_feature_vectors[i])
@@ -174,19 +129,22 @@ class AudioClassifier:
                 raise Exception('\nLabels!!')
             yield features, labels
 
-    def train_model(self, train_path, val_path, batch_size, epochs, learning_rate=0.1, myopt="Adam", model=None):
+    def train_model(self, path, batch_size, epochs, learning_rate=0.1, myopt="Adam", model=None):
         if myopt == "Adam":
             optimizer = Adam(lr=learning_rate)
-        else:
+        elif myopt == "SGD":
             optimizer = SGD(lr=learning_rate)
+        else:
+            optimizer = Adagrad(lr=learning_rate, decay=1e-6)
 
         model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
         model.summary()
 
-        train_files = get_all_arff(train_path)
-        val_files = get_all_arff(val_path)
-        train_gen = self.data_gen(train_path, train_files, batch_size, self.feature_number)
-        val_gen = self.data_gen(val_path, val_files, batch_size, self.feature_number)
+        train_files = get_data_for_generator(path)
+        val_files = get_data_for_generator(path, dataset="Val")
+
+        train_gen = self.data_gen(train_files, batch_size)
+        val_gen = self.data_gen(val_files, batch_size)
         no_of_training_images = len(train_files)
         no_of_val_images = len(val_files)
 
@@ -212,10 +170,51 @@ class AudioClassifier:
 
         return model
 
+    def clip_classification(self, path_clip_beginngin):
+        all_predictions = {}
+        for c in self.classes:
+            all_predictions[c] = 0
+        for feature_vector_path in glob.glob(path_clip_beginngin + "*"):
+            pred, ground_truth = self.test_model(feature_vector_path)
+            all_predictions[pred] += 1
+        return max(all_predictions.items(), key=operator.itemgetter(1))[0]
+
+    def test_model(self, sample_path):
+        sample = np.array(from_arff_to_feture(sample_path)).reshape(1, self.feature_number)
+        ground_truth = sample_path.split("/")[-2]
+        prediction = self.model.predict(sample)
+        return self.lb.inverse_transform(prediction)[0], ground_truth
+
+    def print_confusion_matrix(self, val_path):
+        predictions = []
+        ground_truths = []
+        stats = []
+        for arff in get_data_for_generator(val_path):
+            pred, ground_truth = self.test_model(val_path + arff)
+            predictions.append(pred)
+            ground_truths.append(ground_truth)
+
+        cm = confusion_matrix(ground_truths, predictions, self.classes)
+        stats.append(cm)
+        stats.append(np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=2))
+        stats.append(accuracy_score(ground_truths, predictions))
+        stats.append(classification_report(ground_truths, predictions))
+
+        print("###Results###")
+        for index, elem in enumerate(stats):
+            if index < 2:
+                print_cm(elem, self.classes)
+            elif index == 2:
+                print("Accuracy score: ", elem)
+            else:
+                print("Report")
+                print(elem)
+            print("\n\n")
+
 
 if __name__ == "__main__":
     audio_path = {"e1": "emobase2010_100", "e3": "emobase2010_300", "e6": "emobase2010_600", "ef": "emobase2010_full"}
-    for e in ["ef"]:  # , "e3", "e6"]:
-        ap = "/user/vlongobardi/late_feature/" + audio_path[e] + "/"
+    for e in ["e1", "e3", "e6", "ef"]:
+        ap = "/user/vlongobardi/late_feature/" + audio_path[e] + "_wav/"
         print("######################## AUDIO PATH: ", ap)
-        ac = AudioClassifier(base_path=ap)
+        ync = YamNetClassifier(base_path=ap)

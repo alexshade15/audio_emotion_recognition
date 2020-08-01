@@ -316,7 +316,7 @@ class VideoClassifier:
 
             labels = self.lb.transform(np.array(labels)).reshape((1, 7))
             yield features, labels
-            
+
     def train(self, train_files, val_files, train_data, model):
 
         if train_data["opt"] == "Adam":
