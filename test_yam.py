@@ -36,7 +36,7 @@ class RandomAudioGenerator(Sequence):
         for i in tqdm(range(len(self.X_list)), desc='Dataset Loading'):
             file_path = self.X_list[i]
             # File loading
-            data, sound_sr = librosa.load(file_path, self.sr)
+            data, sound_sr = librosa.load(file_path, self.sr)  # , mono=False, offset=0.0)
             # Features extraction
             data = data if self.transform is None else self.transform(data, sound_sr)
             self.X.append(data)
@@ -51,7 +51,7 @@ class RandomAudioGenerator(Sequence):
         y_batch = []
 
         for i in range(self.n_classes):
-            for k in range(self.sample_per_class):
+            for k in range(len(self.y_ind[self.y[i]])):  # (self.sample_per_class):
                 # select random file belonging to the selected class
                 file_idx = self.y_ind[i][np.random.randint(len(self.y_ind[i]))]
 
@@ -125,8 +125,8 @@ class Extractor:
 
     def __init__(self):
         self.sr = 48000
-        self.win_sec = 0.025
-        self.hop_sec = 0.010
+        self.win_sec = 0.6  # 025
+        self.hop_sec = 0.3  # 010
         self.win_samples = int(self.sr * self.win_sec)
         self.hop_samples = int(self.sr * self.hop_sec)
 
@@ -161,16 +161,20 @@ def augment(x):
     return spec_augment(x, 2)
 
 
-def get_data_for_generator(feature_name="emobase2010_600", dataset="Train"):
-    base_path = "/user/vlongobardi/late_feature/" + feature_name + "_wav/" + dataset
-    datas = glob.glob(base_path + "/*/*.wav")
-    return datas, [path.split("/")[-2] for path in datas]
+def get_data_for_generator(dataset="Train"):
+    map = {"Angry":0, "Disgust":1, "Fear":2, "Happy":3, "Neutral":4, "Sad":5, "Surprise":6}
+    base_path = "/user/vlongobardi/temp_wav/" + dataset
+    x = glob.glob(base_path + "/*/*.wav")
+    y = []
+    for path in x:
+        gt = path.split("/")[-2]
+        y.append(map[gt])
+    return x, y
 
 
 if __name__ == "__main__":
-    feature_name = "emobase2010_600"
-    X_train, y_train = get_data_for_generator(feature_name, "Train")
-    X_val, y_val = get_data_for_generator(feature_name, "Val")
+    X_train, y_train = get_data_for_generator("Train")
+    X_val, y_val = get_data_for_generator("Val")
 
     samples_per_class = 5
     batches_per_epoch = 100

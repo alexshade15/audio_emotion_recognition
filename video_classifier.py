@@ -174,19 +174,23 @@ class VideoClassifier:
         return my_csv
 
     def _generate_data_for_early_fusion(self, files, name):
-        window_size = int(self.feature_name.split("_")[1])
-        frame_to_discard = ceil(window_size / 2 / 40)
+        if "full" in self.feature_name:
+            frame_to_discard = 0
+        else:
+            window_size = int(self.feature_name.split("_")[1])
+            frame_to_discard = ceil(window_size / 2 / 40)
         my_csv = {}
         for file in tqdm(files):
             clip_id_temp = file.split(".")[0]
             # '/user/vlongobardi/AFEW/aligned/Train/Angry/012738600.csv'
             # '/user/vlongobardi/early_feature/framefeature/Train/Angry/012738600_0.dat'
             # '/user/vlongobardi/early_feature/emobase2010_600/Train/Angry/012738600_0.arff'
-            base_path = clip_id_temp.replace("AFEW/aligned", "early_feature/framefeature") + "_*"
+            base_path = clip_id_temp.replace("AFEW/aligned", "early_feature/framefeature") + "*"
             frames_features_path = glob.glob(base_path)
-            audio_features_path = glob.glob(base_path.replace("framefeature", self.feature_name))
+            audio_features_path = glob.glob(base_path.replace("early_feature/framefeature", "late_feature/" + self.feature_name))
             frames_features_path.sort(key=lambda x: int(x.split("_")[-1].split(".")[0]))
-            audio_features_path.sort(key=lambda x: int(x.split("_")[-1].split(".")[0]))
+            if "full" not in self.feature_name:
+                audio_features_path.sort(key=lambda x: int(x.split("_")[-1].split(".")[0]))
             ground_truth = basename(dirname(clip_id_temp))
             clip_id = basename(clip_id_temp)
 
@@ -195,14 +199,17 @@ class VideoClassifier:
             if len(frames_features_path) < 16:
                 continue
                 print("FRAME TOO FEW SAMPLES:", len(frames_features_path), clip_id)
-            if len(audio_features_path) < 16:
+            if len(audio_features_path) < 16 and "full" not in self.feature_name:
                 continue
                 print("AUDIO TOO FEW SAMPLES:", len(audio_features_path), clip_id)
-            for index, audio in enumerate(audio_features_path):
+            for index, frame in enumerate(frames_features_path):
                 try:
                     if clip_id not in my_csv.keys():
                         my_csv[clip_id] = []
-                    my_csv[clip_id].append([ground_truth, frames_features_path[index], audio])
+                    if "full" not in self.feature_name:
+                        my_csv[clip_id].append([ground_truth, frame, audio_features_path[index]])
+                    else:
+                        my_csv[clip_id].append([ground_truth, frame, audio_features_path[0]])
                 except:
                     print(".")
                     continue
@@ -392,13 +399,15 @@ if __name__ == "__main__":
         vc = VideoClassifier(train_mode="late_fusion", audio_model_path=model_path)
         # vc.print_confusion_matrix("/user/vlongobardi/AFEW/aligned/Val")
     else:
-        mt = 1
+        mts = [2]
         print("EARLY")
-        print("Model_type:", mt)
-        arff_paths = {"e1": "emobase2010_100", "i1": "IS09_emotion_100",
-                      "e3": "emobase2010_300", "i3": "IS09_emotion_300",
-                      "e6": "emobase2010_600", "i6": "IS09_emotion_600"}
-        for k in ["e1", 'e3', 'e6']:
-            vc = VideoClassifier(train_mode="early_fusion", time_step=16, feature_name=arff_paths[k], model_type=mt)
+        for mt in mts:
+            print("Model_type:", mt)
+            arff_paths = {"e1": "emobase2010_100", "i1": "IS09_emotion_100",
+                          "e3": "emobase2010_300", "i3": "IS09_emotion_300",
+                          "e6": "emobase2010_600", "i6": "IS09_emotion_600",
+                          "ef": "emobase2010_full", "if": "IS09_emotion_full"}
+            for k in ["ef"]:
+                vc = VideoClassifier(train_mode="early_fusion", time_step=16, feature_name=arff_paths[k], model_type=mt)
 
 
