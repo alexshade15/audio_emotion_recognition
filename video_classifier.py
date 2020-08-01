@@ -187,7 +187,8 @@ class VideoClassifier:
             # '/user/vlongobardi/early_feature/emobase2010_600/Train/Angry/012738600_0.arff'
             base_path = clip_id_temp.replace("AFEW/aligned", "early_feature/framefeature") + "*"
             frames_features_path = glob.glob(base_path)
-            audio_features_path = glob.glob(base_path.replace("early_feature/framefeature", "late_feature/" + self.feature_name))
+            audio_features_path = glob.glob(
+                base_path.replace("early_feature/framefeature", "late_feature/" + self.feature_name))
             frames_features_path.sort(key=lambda x: int(x.split("_")[-1].split(".")[0]))
             if "full" not in self.feature_name:
                 audio_features_path.sort(key=lambda x: int(x.split("_")[-1].split(".")[0]))
@@ -290,6 +291,32 @@ class VideoClassifier:
             labels = self.lb.transform(np.array(labels)).reshape((batch_size, 7))
             yield features, labels
 
+    def early_gen_test(self, list_files, clip_id):
+        ground_truth = list_files[0][0]
+        csv_path = '/user/vlongobardi/AFEW/aligned/Val/GroundTruth/ID.csv'
+        csv_path = csv_path.replace("GroundTruth", ground_truth).replace("ID", clip_id)
+        first_frame_num = int(list_files[0][1].split("_")[-1].split(".")[0])
+        start = 0
+        end = len(list_files) - self.time_step
+        while True:
+            labels = []
+            features = [np.zeros((1, self.feature_num)).astype('float')] * self.time_step
+            features.append(np.zeros((1, self.time_step, 224, 224, 3)).astype('float'))
+            images = DataGen(csv_path, '', 1, 31, NoAug(), 16, 1, 12, test=True)[0][0][0]
+
+            for index, elem in enumerate(list_files[start:self.time_step + start]):
+                audio_path = elem[2]
+                features[-1][0][index] = images[first_frame_num + start + index]
+                features[index][0] = np.array(from_arff_to_feture(audio_path)).reshape(self.feature_num, )
+            labels.append(ground_truth)
+            start += 1
+
+            if start == end:
+                break
+
+            labels = self.lb.transform(np.array(labels)).reshape((1, 7))
+            yield features, labels
+            
     def train(self, train_files, val_files, train_data, model):
 
         if train_data["opt"] == "Adam":
@@ -313,8 +340,9 @@ class VideoClassifier:
             print(0.01 / 10 ** (floor(epoch / 20) + 1))
             return 0.01 / 10 ** (floor(epoch / 20) + 1)
 
-        cb = [ModelCheckpoint(filepath=str("video_models_early_weights/videoModel_{val_accuracy:.4f}_epoch{epoch:02d}" + model_name),
-                              monitor="val_accuracy", save_weights_only=True),
+        cb = [ModelCheckpoint(
+            filepath=str("video_models_early_weights/videoModel_{val_accuracy:.4f}_epoch{epoch:02d}" + model_name),
+            monitor="val_accuracy", save_weights_only=True),
               TensorBoard(log_dir="Rearly_big_logs_video_" + self.train_mode, write_graph=True, write_images=True)]
         if self.train_mode == "early_fusion":
             cb += [LearningRateScheduler(custom_scheduler)]
@@ -332,7 +360,7 @@ class VideoClassifier:
 
         print("\n\nModels saved as:", model_name)
         print("Train:", history.history['accuracy'][-1], "Val:", history.history['val_accuracy'][-1])
-        #model.save("video_models/" + model_name)
+        # model.save("video_models/" + model_name)
         model.save_weights("video_models_early_weights/" + model_name)
 
         return model
@@ -409,5 +437,3 @@ if __name__ == "__main__":
                           "ef": "emobase2010_full", "if": "IS09_emotion_full"}
             for k in ["ef"]:
                 vc = VideoClassifier(train_mode="early_fusion", time_step=16, feature_name=arff_paths[k], model_type=mt)
-
-
