@@ -34,10 +34,9 @@ def get_feature_number(feature_name):
     return None
 
 
-def get_data_for_generator(dataset="Train"):
-    base_path = "/user/vlongobardi/temp_wav/" + dataset
+def get_data_for_generator(base_path="/user/vlongobardi/temp_wav/Train"):
     x = glob.glob(base_path + "/*/*.wav")
-    return x, [path.split("/")[-2] for path in x]
+    return x  # , [path.split("/")[-2] for path in x]
 
 
 class YamNetClassifier:
@@ -108,7 +107,7 @@ class YamNetClassifier:
                     # check hop and win
                     signal, sound_sr = librosa.load(list_feature_vectors[i], 48000)
                     mel = preprocess_input(signal, sound_sr)
-                    print("Mel shape feature", mel.shape)
+                    # print("Mel shape feature", mel.shape)
 
                     features[i - c] = np.array(mel)
                     labels.append(list_feature_vectors[i].split("/")[0])
@@ -140,8 +139,8 @@ class YamNetClassifier:
         model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
         model.summary()
 
-        train_files = get_data_for_generator(path)
-        val_files = get_data_for_generator(path, dataset="Val")
+        train_files = get_data_for_generator(path + "Train")
+        val_files = get_data_for_generator(path + "Val")
 
         train_gen = self.data_gen(train_files, batch_size)
         val_gen = self.data_gen(val_files, batch_size)
@@ -170,27 +169,29 @@ class YamNetClassifier:
 
         return model
 
-    def clip_classification(self, path_clip_beginngin):
+    def clip_classification(self, dataset_path):
         all_predictions = {}
         for c in self.classes:
             all_predictions[c] = 0
-        for feature_vector_path in glob.glob(path_clip_beginngin + "*"):
+        val_files = get_data_for_generator(dataset_path)
+        for feature_vector_path in val_files:
             pred, ground_truth = self.test_model(feature_vector_path)
             all_predictions[pred] += 1
         return max(all_predictions.items(), key=operator.itemgetter(1))[0]
 
     def test_model(self, sample_path):
-        sample = np.array(from_arff_to_feture(sample_path)).reshape(1, self.feature_number)
+        signal, sound_sr = librosa.load(sample_path, 48000)
+        mel = preprocess_input(signal, sound_sr)
         ground_truth = sample_path.split("/")[-2]
-        prediction = self.model.predict(sample)
+        prediction = self.model.predict(mel)
         return self.lb.inverse_transform(prediction)[0], ground_truth
 
-    def print_confusion_matrix(self, val_path):
+    def print_confusion_matrix(self, path):
         predictions = []
         ground_truths = []
         stats = []
-        for arff in get_data_for_generator(val_path):
-            pred, ground_truth = self.test_model(val_path + arff)
+        for file_path in get_data_for_generator(path + "Val"):
+            pred, ground_truth = self.test_model(file_path)
             predictions.append(pred)
             ground_truths.append(ground_truth)
 
