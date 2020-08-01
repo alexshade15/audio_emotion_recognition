@@ -1,14 +1,11 @@
-import sys
-import os
 import glob
 import random
 import operator
 import librosa
+import traceback
 import numpy as np
-from tqdm import tqdm
 
 from keras.models import load_model
-from keras.utils import to_categorical, Sequence
 from keras.optimizers import Adam, SGD, Adagrad
 from keras.callbacks import TensorBoard, ModelCheckpoint
 
@@ -16,7 +13,6 @@ from sklearn.preprocessing import LabelBinarizer
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
 
 from Dataset.Dataset_Utils.dataset_tools import print_cm
-from test_models import *
 
 from keras_yamnet.yamnet import YAMNet
 from keras_yamnet.preprocessing import preprocess_input
@@ -112,6 +108,7 @@ class YamNetClassifier:
                     features[i - c] = np.array(mel)
                     labels.append(list_feature_vectors[i].split("/")[0])
                 except:
+                    traceback.print_exc()
                     print("\n\ni:", i, "\nc:", c, "\nist_feature_vectors[i]:", list_feature_vectors[i])
             c += batch_size
             if c + batch_size > len(list_feature_vectors):
@@ -125,6 +122,7 @@ class YamNetClassifier:
                 print("\n\n#############", labels)
                 print("\n\n#############", np.array(labels))
                 print("\n\nc:", c, "\nist_feature_vectors[i]:", list_feature_vectors[c:c + batch_size])
+                traceback.print_exc()
                 raise Exception('\nLabels!!')
             yield features, labels
 
