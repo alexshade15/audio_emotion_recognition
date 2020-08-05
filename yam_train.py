@@ -7,7 +7,7 @@ import numpy as np
 
 from keras.models import load_model
 from keras.optimizers import Adam, SGD, Adagrad
-from keras.callbacks import TensorBoard, ModelCheckpoint
+from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
 
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
@@ -20,7 +20,7 @@ from keras_yamnet.preprocessing import preprocess_input
 
 def get_feature_number(feature_name):
     if "full" in feature_name:
-        return 387
+        return 387 # No! Non e costante!
     elif "600" in feature_name:
         return 58
     elif "300" in feature_name:
@@ -42,16 +42,18 @@ class YamNetClassifier:
         self.classes = classes
         self.lb = LabelBinarizer()
         self.lb.fit_transform(np.array(classes))
+        self.feature_name = base_path.split("/")[-2]
+        self.feature_number = get_feature_number(self.feature_name)
         if model_path is not None:
             self.model = load_model(model_path)
             self.feature_number = get_feature_number(model_path)
         else:
             skips = 0
-            iters = 10
+            iters = 2
             bs = 16
-            ep = 150
+            ep = 50
             opts = ["SGD", "Adam", "Adagrad"]
-            lrs = [0.1, 0.01, 0.001, 0.0001, 0.00001]
+            lrs = [0.01, 0.001, 0.0001]
             models = [YAMNet]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
@@ -74,8 +76,6 @@ class YamNetClassifier:
                                 "\nLr:", lr, "in", lrs)
 
                             self.current_model_name = models_name[index]
-                            self.feature_name = base_path.split("/")[-2]
-                            self.feature_number = get_feature_number(self.feature_name)
 
                             file_name = "audioModel_epoch" + str(ep) + "_lr" + str(lr) + "_Opt" + opt + "_" + \
                                         models_name[index] + "_Feature" + self.feature_name + "_" + str(
@@ -97,7 +97,7 @@ class YamNetClassifier:
             random.shuffle(list_feature_vectors)
         while True:
             labels = []
-            features = np.zeros((batch_size, self.feature_number)).astype('float')
+            features = np.zeros((batch_size, self.feature_number, 64)).astype('float')
             for i in range(c, c + batch_size):
                 try:
                     # check hop and win
@@ -106,9 +106,12 @@ class YamNetClassifier:
                     # print("Mel shape feature", mel.shape)
 
                     features[i - c] = np.array(mel)
-                    labels.append(list_feature_vectors[i].split("/")[0])
+                    labels.append(list_feature_vectors[i].split("/")[-2])
                 except:
                     traceback.print_exc()
+                    print("signal shape:", librosa.load(list_feature_vectors[i], 48000)[0].shape)
+                    signal, sound_sr = librosa.load(list_feature_vectors[i], 48000)
+                    print(preprocess_input(signal, sound_sr).shape)
                     print("\n\ni:", i, "\nc:", c, "\nist_feature_vectors[i]:", list_feature_vectors[i])
             c += batch_size
             if c + batch_size > len(list_feature_vectors):
@@ -149,8 +152,9 @@ class YamNetClassifier:
                      "_Feature" + self.feature_name + "_" + str(self.iteration) + ".h5"
 
         cb = [ModelCheckpoint(filepath="audio_models/audioModel_{val_accuracy:.4f}_epoch{epoch:02d}" + model_name,
-                              monitor="val_accuracy"),
+                              monitor="val_accuracy", save_best_only=True),
               TensorBoard(log_dir="FULL_AUDIO_LOG", write_graph=True, write_images=True)]
+              #EarlyStopping(monitor='val_accuracy', patience=10, mode='max')]
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
                                       validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
                                       verbose=1, callbacks=cb)
@@ -213,7 +217,7 @@ class YamNetClassifier:
 
 if __name__ == "__main__":
     audio_path = {"e1": "emobase2010_100", "e3": "emobase2010_300", "e6": "emobase2010_600", "ef": "emobase2010_full"}
-    for e in ["e1", "e3", "e6", "ef"]:
+    for e in ["e3", "e1"]:
         ap = "/user/vlongobardi/late_feature/" + audio_path[e] + "_wav/"
         print("######################## AUDIO PATH: ", ap)
         ync = YamNetClassifier(base_path=ap)

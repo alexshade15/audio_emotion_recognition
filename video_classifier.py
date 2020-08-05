@@ -311,7 +311,7 @@ class VideoClassifier:
             labels.append(ground_truth)
             start += 1
 
-            if start == end:
+            if start >= end:
                 break
 
             labels = self.lb.transform(np.array(labels)).reshape((1, 7))
@@ -382,16 +382,17 @@ class VideoClassifier:
         csv_fusion = {}
         predictions = []
         ground_truths = []
-
         if self.train_mode == "early_fusion":
             csv_fusion = self.load_early_csv("val")
             print("CSV loaded", len(csv_fusion))
             gen = self.early_gen(csv_fusion, 1, "eval")
             for x in gen:
-                ground_truths.append(self.lb.inverse_transform(np.array([x[1]]))[0])
+                ground_truths.append(self.lb.inverse_transform(x[1]))
                 pred = self.model.predict(x[0])
-                pred = self.lb.inverse_transform(pred)[0]
+                #print("pred shape", pred.shape, "\n", pred)
+                pred = self.lb.inverse_transform(pred)
                 predictions.append(pred)
+                #print("\ngt, pred", self.lb.inverse_transform(x[1]), pred)
             self.print_stats(ground_truths, predictions, "Video")
         else:
             with open('lables_late_fusion' + self.feature_name + '.csv', 'r') as f:
