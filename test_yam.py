@@ -27,6 +27,8 @@ class RandomAudioGenerator(Sequence):
         self.n_classes = len(set(y))
         self.X = []
 
+        self.num_batch = 0
+
         # take memory of the files belonging to each class
         self.y_ind = {}
 
@@ -47,11 +49,14 @@ class RandomAudioGenerator(Sequence):
 
     def __getitem__(self, index):
 
+        self.num_batch += 1
+        print("OK, THIS IS CALL #", self.num_batch)
+
         X_batch = []
         y_batch = []
 
         for i in range(self.n_classes):
-            for k in range(len(self.y_ind[self.y[i]])):  # (self.sample_per_class):
+            for k in range(self.sample_per_class):
                 # select random file belonging to the selected class
                 file_idx = self.y_ind[i][np.random.randint(len(self.y_ind[i]))]
 
@@ -163,7 +168,7 @@ def augment(x):
 
 def get_data_for_generator(dataset="Train"):
     map_gt = {"Angry": 0, "Disgust": 1, "Fear": 2, "Happy": 3, "Neutral": 4, "Sad": 5, "Surprise": 6}
-    base_path = "/user/vlongobardi/temp_wav/" + dataset
+    base_path = "/user/vlongobardi/late_feature/emobase2010_600_wav/" + dataset
     x = glob.glob(base_path + "/*/*.wav")
     y = []
     for path in x:
@@ -175,7 +180,7 @@ def get_data_for_generator(dataset="Train"):
 if __name__ == "__main__":
     X_train, y_train = get_data_for_generator("Train")
     X_val, y_val = get_data_for_generator("Val")
-    samples_per_class = 5
+    samples_per_class = 500
     batches_per_epoch = 100
     sr = 48000
     win_sec = 0.6  # 0.1, 0.3, 0.6, full

@@ -183,10 +183,10 @@ class YamNetClassifier:
                                       validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
                                       verbose=1, callbacks=cb)
         # score = model.evaluate_generator(test_gen, no_of_test_images // batch_size)
-        print("\n\nTrain Accuracy =", history.history['accuracy'])
-        print("\nVal Accuracy =", history.history['val_accuracy'])
-        print("\n\nTrain Loss =", history.history['loss'])
-        print("\nVal Loss =", history.history['val_loss'])
+        print("\n\nTrain_Accuracy =", history.history['accuracy'])
+        print("\nVal_Accuracy =", history.history['val_accuracy'])
+        print("\n\nTrain_Loss =", history.history['loss'])
+        print("\nVal_Loss =", history.history['val_loss'])
 
         model_name = "audioModel_" + str(history.history['val_accuracy'][-1]) + "_epoch" + str(epochs) + model_name
 
