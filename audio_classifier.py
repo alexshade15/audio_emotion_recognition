@@ -162,7 +162,8 @@ class AudioClassifier:
             c += batch_size
             if c + batch_size > len(list_feature_vectors):
                 c = 0
-                random.shuffle(list_feature_vectors)
+                if mode == "train":
+                    random.shuffle(list_feature_vectors)
                 if mode == "eval":
                     break
             try:
@@ -186,7 +187,7 @@ class AudioClassifier:
         train_files = get_all_arff(train_path)
         val_files = get_all_arff(val_path)
         train_gen = self.data_gen(train_path, train_files, batch_size, self.feature_number)
-        val_gen = self.data_gen(val_path, val_files, batch_size, self.feature_number)
+        val_gen = self.data_gen(val_path, val_files, batch_size, self.feature_number, "val")
         no_of_training_images = len(train_files)
         no_of_val_images = len(val_files)
 

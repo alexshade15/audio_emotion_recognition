@@ -18,9 +18,35 @@ from keras_yamnet.yamnet import YAMNet
 from keras_yamnet.preprocessing import preprocess_input
 
 
+def spec_augment(spec, num_mask=2, freq_masking_max_percentage=0.1):
+    spec = spec.copy()
+
+    ow = np.min(spec)
+    for i in range(num_mask):
+        freq_percentage = np.random.uniform(0.0, freq_masking_max_percentage)
+
+        num_freqs_to_mask = int(round(freq_percentage * spec.shape[1]))
+        f0 = np.random.uniform(low=0.0, high=spec.shape[1] - num_freqs_to_mask)
+        f0 = int(f0)
+        spec[:, f0:f0 + num_freqs_to_mask] = ow
+
+        time_percentage = np.random.uniform(0.0, freq_masking_max_percentage)
+
+        num_frames_to_mask = int(round(time_percentage * spec.shape[0]))
+        t0 = np.random.uniform(low=0.0, high=spec.shape[0] - num_frames_to_mask)
+        t0 = int(t0)
+        spec[t0:t0 + num_frames_to_mask, :] = ow
+
+    return spec
+
+
+def augment(x):
+    return spec_augment(x, 2)
+
+
 def get_feature_number(feature_name):
     if "full" in feature_name:
-        return 387 # No! Non e costante!
+        return 387  # No! Non e costante!
     elif "600" in feature_name:
         return 58
     elif "300" in feature_name:
@@ -50,10 +76,10 @@ class YamNetClassifier:
         else:
             skips = 0
             iters = 2
-            bs = 16
+            bs = 16  # 128
             ep = 50
             opts = ["SGD", "Adam", "Adagrad"]
-            lrs = [0.01, 0.001, 0.0001]
+            lrs = [0.01, 0.001, 0.0001]  # 0.003
             models = [YAMNet]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
@@ -91,7 +117,7 @@ class YamNetClassifier:
                             # sys.stdout = old_stdout
                             # log_file.close()
 
-    def data_gen(self, list_feature_vectors, batch_size, mode="train"):
+    def data_gen(self, list_feature_vectors, batch_size, mode="train", aug=None):
         c = 0
         if mode == "train":
             random.shuffle(list_feature_vectors)
@@ -100,11 +126,9 @@ class YamNetClassifier:
             features = np.zeros((batch_size, self.feature_number, 64)).astype('float')
             for i in range(c, c + batch_size):
                 try:
-                    # check hop and win
                     signal, sound_sr = librosa.load(list_feature_vectors[i], 48000)
                     mel = preprocess_input(signal, sound_sr)
-                    # print("Mel shape feature", mel.shape)
-
+                    mel = mel if aug is None else aug(mel)
                     features[i - c] = np.array(mel)
                     labels.append(list_feature_vectors[i].split("/")[-2])
                 except:
@@ -143,7 +167,7 @@ class YamNetClassifier:
         train_files = get_data_for_generator(path + "Train")
         val_files = get_data_for_generator(path + "Val")
 
-        train_gen = self.data_gen(train_files, batch_size)
+        train_gen = self.data_gen(train_files, batch_size)  # , aug=augment)
         val_gen = self.data_gen(val_files, batch_size)
         no_of_training_images = len(train_files)
         no_of_val_images = len(val_files)
@@ -154,7 +178,7 @@ class YamNetClassifier:
         cb = [ModelCheckpoint(filepath="audio_models/audioModel_{val_accuracy:.4f}_epoch{epoch:02d}" + model_name,
                               monitor="val_accuracy", save_best_only=True),
               TensorBoard(log_dir="FULL_AUDIO_LOG", write_graph=True, write_images=True)]
-              #EarlyStopping(monitor='val_accuracy', patience=10, mode='max')]
+        # EarlyStopping(monitor='val_accuracy', patience=10, mode='max')]
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
                                       validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
                                       verbose=1, callbacks=cb)
