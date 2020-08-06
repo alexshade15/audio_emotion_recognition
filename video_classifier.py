@@ -106,7 +106,8 @@ class VideoClassifier:
                             train_infos["generator"] = self.late_gen
                             m = model(14)
                         else:
-                            train_infos["generator"] = self.early_gen
+                            train_infos["generator1"] = self.early_gen_train
+                            train_infos["generator2"] = self.early_gen_val
                             t_files, v_files = self.csv_fusion["train"], self.csv_fusion["val"]
                             m = model((self.time_step, 224, 224, 3), dim=self.model_type)
 
@@ -223,7 +224,7 @@ class VideoClassifier:
 
     def late_gen(self, list_files, batch_size, mode="Train"):
         c = 0
-        if mode == "Train" or mode == "Val":
+        if mode == "Train":
             random.shuffle(list_files)
         while True:
             labels = []
@@ -237,45 +238,30 @@ class VideoClassifier:
             c += batch_size
             if c + batch_size > len(list_files):
                 c = 0
-                random.shuffle(list_files)
+                if mode == "Train":
+                    random.shuffle(list_files)
                 if mode == "eval":
                     break
             labels = self.lb.transform(np.array(labels))
             yield features, labels
 
-    def early_gen(self, list_files, batch_size, mode="Train"):
+    def early_gen_train(self, list_files, batch_size):
         c = 0
         clip_ids = list(list_files.keys())
-        if mode == "Train" or mode == "Val":
-            random.shuffle(clip_ids)
-            m = mode
-        else:
-            m = "Val"
+        random.shuffle(clip_ids)
         while True:
             labels = []
             features = [np.zeros((batch_size, self.feature_num)).astype('float')] * self.time_step
             features.append(np.zeros((batch_size, self.time_step, 224, 224, 3)).astype('float'))
-
             for i in range(c, c + batch_size):
                 clip_id = clip_ids[i]
                 video_info = list_files[clip_id]
                 ground_truth = video_info[0][0]
-                csv_path = '/user/vlongobardi/AFEW/aligned/Mode/GroundTruth/ID.csv'
-                csv_path = csv_path.replace("Mode", m).replace("GroundTruth", ground_truth).replace("ID", clip_id)
+                csv_path = '/user/vlongobardi/AFEW/aligned/Train/GroundTruth/ID.csv'
+                csv_path = csv_path.replace("GroundTruth", ground_truth).replace("ID", clip_id)
                 images = DataGen(csv_path, '', 1, 31, NoAug(), 16, 1, 12, test=True)[0][0][0]
                 first_frame_num = int(video_info[0][1].split("_")[-1].split(".")[0])
-
-                if len(video_info) - self.time_step < 0:
-                    print("len video info, time_step", len(video_info), self.time_step)
-                    print(clip_id, ground_truth)
-                    # exception: the video hasn't enought frames
-
-                # select a random beginngin for the start of the clip
-                try:
-                    start = random.randint(0, len(video_info) - self.time_step)
-                except:
-                    print("ERROR on RANDOM: from 0 to <" + str(len(video_info)) + "-" + str(
-                        self.time_step) + ">, clip id:", clip_id)
+                start = random.randint(0, len(video_info) - self.time_step)
                 for index, elem in enumerate(video_info[start:self.time_step + start]):
                     ground_truth, _, audio_path = elem
                     features[-1][i - c][index] = images[first_frame_num + start + index]
@@ -285,13 +271,42 @@ class VideoClassifier:
             if c + batch_size > len(clip_ids):
                 c = 0
                 random.shuffle(clip_ids)
-                if mode == "eval":
-                    break
-            # print(labels)
+            labels = self.lb.transform(np.array(labels)).reshape((batch_size, 7))
+            yield features, labels
+
+    def early_gen_val(self, list_files, batch_size):
+        """ stride 50% sul su tutti i file """
+        c = 0
+        clip_ids = list(list_files.keys())
+        while True:
+            labels = []
+            features = [np.zeros((batch_size, self.feature_num)).astype('float')] * self.time_step
+            features.append(np.zeros((batch_size, self.time_step, 224, 224, 3)).astype('float'))
+
+            for i in range(c, c + batch_size):
+                clip_id = clip_ids[i]
+                video_info = list_files[clip_id]
+                ground_truth = video_info[0][0]
+                csv_path = '/user/vlongobardi/AFEW/aligned/Val/GroundTruth/ID.csv'
+                csv_path = csv_path.replace("GroundTruth", ground_truth).replace("ID", clip_id)
+                images = DataGen(csv_path, '', 1, 31, NoAug(), 16, 1, 12, test=True)[0][0][0]
+                first_frame_num = int(video_info[0][1].split("_")[-1].split(".")[0])
+
+                for start in range(0, len(video_info) - self.time_step, self.time_step//2):
+                    for index, elem in enumerate(video_info[start:self.time_step + start]):
+                        ground_truth, _, audio_path = elem
+                        features[-1][i - c][index] = images[first_frame_num + start + index]
+                        features[index][i - c] = np.array(from_arff_to_feture(audio_path)).reshape(self.feature_num, )
+                    labels.append(ground_truth)
+            c += batch_size
+            if c + batch_size > len(clip_ids):
+                c = 0
+                random.shuffle(clip_ids)
             labels = self.lb.transform(np.array(labels)).reshape((batch_size, 7))
             yield features, labels
 
     def early_gen_test(self, list_files, clip_id):
+        """ stride 1 sul singolo file, quindi va richiamato per ogni file """
         ground_truth = list_files[0][0]
         csv_path = '/user/vlongobardi/AFEW/aligned/Val/GroundTruth/ID.csv'
         csv_path = csv_path.replace("GroundTruth", ground_truth).replace("ID", clip_id)
@@ -327,8 +342,8 @@ class VideoClassifier:
         model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
         model.summary()
 
-        train_gen = train_data["generator"](train_files, train_data["batch_size"], "Train")
-        val_gen = train_data["generator"](val_files, train_data["batch_size"], "Val")
+        train_gen = train_data["generator1"](train_files, train_data["batch_size"])
+        val_gen = train_data["generator2"](val_files, train_data["batch_size"])
         no_of_training_images = len(train_files)
         no_of_val_images = len(val_files)
 
@@ -343,7 +358,7 @@ class VideoClassifier:
         cb = [ModelCheckpoint(
             filepath=str("video_models_early_weights/videoModel_{val_accuracy:.4f}_epoch{epoch:02d}" + model_name),
             monitor="val_accuracy", save_weights_only=True),
-              TensorBoard(log_dir="Rearly_big_logs_video_" + self.train_mode, write_graph=True, write_images=True)]
+            TensorBoard(log_dir="Rearly_big_logs_video_" + self.train_mode, write_graph=True, write_images=True)]
         if self.train_mode == "early_fusion":
             cb += [LearningRateScheduler(custom_scheduler)]
         history = model.fit_generator(train_gen, validation_data=val_gen, epochs=train_data["epoch"],
@@ -385,14 +400,14 @@ class VideoClassifier:
         if self.train_mode == "early_fusion":
             csv_fusion = self.load_early_csv("val")
             print("CSV loaded", len(csv_fusion))
-            gen = self.early_gen(csv_fusion, 1, "eval")
+            gen = self.early_gen_train(csv_fusion, 1, "eval")  # test gen
             for x in gen:
                 ground_truths.append(self.lb.inverse_transform(x[1]))
                 pred = self.model.predict(x[0])
-                #print("pred shape", pred.shape, "\n", pred)
+                # print("pred shape", pred.shape, "\n", pred)
                 pred = self.lb.inverse_transform(pred)
                 predictions.append(pred)
-                #print("\ngt, pred", self.lb.inverse_transform(x[1]), pred)
+                # print("\ngt, pred", self.lb.inverse_transform(x[1]), pred)
             self.print_stats(ground_truths, predictions, "Video")
         else:
             with open('lables_late_fusion' + self.feature_name + '.csv', 'r') as f:
@@ -428,7 +443,7 @@ if __name__ == "__main__":
         vc = VideoClassifier(train_mode="late_fusion", audio_model_path=model_path)
         # vc.print_confusion_matrix("/user/vlongobardi/AFEW/aligned/Val")
     else:
-        mts = [2]
+        mts = [1]
         print("EARLY")
         for mt in mts:
             print("Model_type:", mt)
@@ -436,5 +451,5 @@ if __name__ == "__main__":
                           "e3": "emobase2010_300", "i3": "IS09_emotion_300",
                           "e6": "emobase2010_600", "i6": "IS09_emotion_600",
                           "ef": "emobase2010_full", "if": "IS09_emotion_full"}
-            for k in ["ef"]:
+            for k in ["e6", "e3", "e1", "ef"]:
                 vc = VideoClassifier(train_mode="early_fusion", time_step=16, feature_name=arff_paths[k], model_type=mt)
