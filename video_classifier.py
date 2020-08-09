@@ -107,7 +107,7 @@ class VideoClassifier:
                             m = model(14)
                         else:
                             train_infos["generator1"] = self.early_gen_train
-                            train_infos["generator2"] = self.early_gen_old_val
+                            train_infos["generator2"] = self.early_gen_new_val
                             t_files, v_files = self.csv_fusion["train"], self.csv_fusion["val"]
                             m = model((self.time_step, 224, 224, 3), dim=self.model_type)
 
@@ -274,7 +274,7 @@ class VideoClassifier:
             labels = self.lb.transform(np.array(labels)).reshape((batch_size, 7))
             yield features, labels
 
-    def early_gen_old_val(self, list_files, batch_size):
+    def early_gen_old_val(self, list_files, batch_size, mode):
         c = 0
         clip_ids = list(list_files.keys())
         random.shuffle(clip_ids)
@@ -299,43 +299,51 @@ class VideoClassifier:
             c += batch_size
             if c + batch_size > len(clip_ids):
                 c = 0
+                if mode == "eval":
+                    break
                 random.shuffle(clip_ids)
             labels = self.lb.transform(np.array(labels)).reshape((batch_size, 7))
             yield features, labels
 
-    # def early_gen_val(self, list_files, batch_size):
-    #     """ stride 50% sul su tutti i file """
-    #     c = 0
-    #     clip_ids = list(list_files.keys())
-    #     while True:
-    #         labels = []
-    #         features = [np.zeros((batch_size, self.feature_num)).astype('float')] * self.time_step
-    #         features.append(np.zeros((batch_size, self.time_step, 224, 224, 3)).astype('float'))
-    #
-    #         for i in range(c, c + batch_size):
-    #             clip_id = clip_ids[i]
-    #             video_info = list_files[clip_id]
-    #             ground_truth = video_info[0][0]
-    #             csv_path = '/user/vlongobardi/AFEW/aligned/Val/GroundTruth/ID.csv'
-    #             csv_path = csv_path.replace("GroundTruth", ground_truth).replace("ID", clip_id)
-    #             images = DataGen(csv_path, '', 1, 31, NoAug(), 16, 1, 12, test=True)[0][0][0]
-    #             first_frame_num = int(video_info[0][1].split("_")[-1].split(".")[0])
-    #
-    #             for start in range(0, len(video_info) - self.time_step, self.time_step // 2):
-    #                 for index, elem in enumerate(video_info[start:self.time_step + start]):
-    #                     ground_truth, _, audio_path = elem
-    #                     features[-1][i - c][index] = images[first_frame_num + start + index]
-    #                     features[index][i - c] = np.array(from_arff_to_feture(audio_path)).reshape(self.feature_num, )
-    #                 labels.append(ground_truth)
-    #         c += batch_size
-    #         if c + batch_size > len(clip_ids):
-    #             c = 0
-    #             random.shuffle(clip_ids)
-    #         labels = self.lb.transform(np.array(labels)).reshape((batch_size, 7))
-    #         yield features, labels
+    def early_gen_new_val(self, list_files, batch_size, mode="val", stride=2):
+        """ stride 50% sul su tutti i file """
+        c = 0
+        clip_index = 0
+        clip_ids = list(list_files.keys())
+        while True:
+            video_info = list_files[clip_ids[clip_index]]
+            ground_truth = video_info[0][0]
+            csv_path = '/user/vlongobardi/AFEW/aligned/Val/GroundTruth/ID.csv'
+            csv_path = csv_path.replace("GroundTruth", ground_truth).replace("ID", clip_ids[clip_index])
+            images = DataGen(csv_path, '', 1, 31, NoAug(), 16, 1, 12, test=True)[0][0][0]
+            first_frame_num = int(video_info[0][1].split("_")[-1].split(".")[0])
+
+            for start in range(0, len(video_info) - self.time_step, self.time_step // stride):
+                if c == 0:
+                    labels = []
+                    features = [np.zeros((batch_size, self.feature_num)).astype('float')] * self.time_step
+                    features.append(np.zeros((batch_size, self.time_step, 224, 224, 3)).astype('float'))
+
+                for index, elem in enumerate(video_info[start:self.time_step + start]):
+                    audio_path = elem[2]
+                    features[-1][c][index] = images[first_frame_num + start + index]
+                    features[index][c] = np.array(from_arff_to_feture(audio_path)).reshape(self.feature_num, )
+                    labels.append(ground_truth)
+
+                c += 1
+                if c == batch_size:
+                    c = 0
+                    labels = self.lb.transform(np.array(labels)).reshape((batch_size, 7))
+                    yield features, labels
+
+            clip_index += 1
+            if clip_index > len(clip_ids):
+                if mode == "eval":
+                    break
+                clip_index = 0
 
     def early_gen_test_clip(self, list_files, clip_id, stride=2):
-        """ stride 1 sul singolo file, quindi va richiamato per ogni file """
+        """ stride su singolo file, quindi va richiamato per ogni file """
         ground_truth = list_files[0][0]
         csv_path = '/user/vlongobardi/AFEW/aligned/Val/GroundTruth/ID.csv'
         csv_path = csv_path.replace("GroundTruth", ground_truth).replace("ID", clip_id)
@@ -347,17 +355,14 @@ class VideoClassifier:
             features = [np.zeros((1, self.feature_num)).astype('float')] * self.time_step
             features.append(np.zeros((1, self.time_step, 224, 224, 3)).astype('float'))
             images = DataGen(csv_path, '', 1, 31, NoAug(), 16, 1, 12, test=True)[0][0][0]
-
-            for index, elem in enumerate(list_files[start:start + self.time_step // stride]):
+            for index, elem in enumerate(list_files[start:start + self.time_step]):
                 audio_path = elem[2]
                 features[-1][0][index] = images[first_frame_num + start + index]
                 features[index][0] = np.array(from_arff_to_feture(audio_path)).reshape(self.feature_num, )
             labels.append(ground_truth)
-            start += 1
-
+            start += self.time_step // stride
             if start >= end:
                 break
-
             labels = self.lb.transform(np.array(labels)).reshape((1, 7))
             yield features, labels
 
@@ -431,11 +436,11 @@ class VideoClassifier:
             print("CSV loaded", len(csv_fusion))
             gen = self.early_gen_train(csv_fusion, 1, "eval")  # test gen
             for x in gen:
-                ground_truths.append(self.lb.inverse_transform(x[1]))
+                ground_truths.append(self.lb.inverse_transform(x[1])[0])
                 pred = self.model.predict(x[0])
                 # print("pred shape", pred.shape, "\n", pred)
                 pred = self.lb.inverse_transform(pred)
-                predictions.append(pred)
+                predictions.append(pred[0])
                 # print("\ngt, pred", self.lb.inverse_transform(x[1]), pred)
             self.print_stats(ground_truths, predictions, "Video")
         else:
