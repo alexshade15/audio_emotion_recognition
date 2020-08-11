@@ -28,7 +28,7 @@ classes = ["Angry", "Disgust", "Fear", "Happy", "Neutral", "Sad", "Surprise"]
 class VideoClassifier:
 
     def __init__(self, train_mode="late_fusion", video_model_path=None, audio_model_path="", time_step=16,
-                 base_path="/user/vlongobardi/AFEW/aligned/", feature_name="emobase2010_300", model_type=0):
+                 base_path="/user/vlongobardi/AFEW/aligned/", feature_name="emobase2010_300", model_type=0, stride=2):
         self.time_step = time_step
         self.train_mode = train_mode
         if train_mode == "late_fusion":
@@ -40,6 +40,7 @@ class VideoClassifier:
         else:
             self.feature_name = feature_name
             self.model_type = model_type
+            self.stride = stride
         self.feature_num = get_feature_number(self.feature_name)
         self.classes = classes
 
@@ -348,146 +349,143 @@ class VideoClassifier:
             if mode == "eval":
                 break
 
+    def early_gen_test_clip(self, list_files, clip_id, stride=2):
+        """ stride su singolo file, quindi va richiamato per ogni file """
+        ground_truth = list_files[0][0]
+        csv_path = '/user/vlongobardi/AFEW/aligned/Val/GroundTruth/ID.csv'
+        csv_path = csv_path.replace("GroundTruth", ground_truth).replace("ID", clip_id)
+        first_frame_num = int(list_files[0][1].split("_")[-1].split(".")[0])
+        start = 0
+        end = len(list_files) - self.time_step
+        while True:
+            labels = []
+            features = [np.zeros((1, self.feature_num)).astype('float')] * self.time_step
+            features.append(np.zeros((1, self.time_step, 224, 224, 3)).astype('float'))
+            images = DataGen(csv_path, '', 1, 31, NoAug(), 16, 1, 12, test=True)[0][0][0]
+            for index, elem in enumerate(list_files[start:start + self.time_step]):
+                audio_path = elem[2]
+                features[-1][0][index] = images[first_frame_num + start + index]
+                features[index][0] = np.array(from_arff_to_feture(audio_path)).reshape(self.feature_num, )
+            labels.append(ground_truth)
+            start += self.time_step // stride
+            if start >= end:
+                break
+            labels = self.lb.transform(np.array(labels)).reshape((1, 7))
+            yield features, labels
 
-def early_gen_test_clip(self, list_files, clip_id, stride=2):
-    """ stride su singolo file, quindi va richiamato per ogni file """
-    ground_truth = list_files[0][0]
-    csv_path = '/user/vlongobardi/AFEW/aligned/Val/GroundTruth/ID.csv'
-    csv_path = csv_path.replace("GroundTruth", ground_truth).replace("ID", clip_id)
-    first_frame_num = int(list_files[0][1].split("_")[-1].split(".")[0])
-    start = 0
-    end = len(list_files) - self.time_step
-    while True:
-        labels = []
-        features = [np.zeros((1, self.feature_num)).astype('float')] * self.time_step
-        features.append(np.zeros((1, self.time_step, 224, 224, 3)).astype('float'))
-        images = DataGen(csv_path, '', 1, 31, NoAug(), 16, 1, 12, test=True)[0][0][0]
-        for index, elem in enumerate(list_files[start:start + self.time_step]):
-            audio_path = elem[2]
-            features[-1][0][index] = images[first_frame_num + start + index]
-            features[index][0] = np.array(from_arff_to_feture(audio_path)).reshape(self.feature_num, )
-        labels.append(ground_truth)
-        start += self.time_step // stride
-        if start >= end:
-            break
-        labels = self.lb.transform(np.array(labels)).reshape((1, 7))
-        yield features, labels
+    def train(self, train_files, val_files, train_data, model):
+        if train_data["opt"] == "Adam":
+            optimizer = Adam(lr=train_data["lr"])
+        else:
+            optimizer = SGD(lr=train_data["lr"])
 
+        model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+        model.summary()
 
-def train(self, train_files, val_files, train_data, model):
-    if train_data["opt"] == "Adam":
-        optimizer = Adam(lr=train_data["lr"])
-    else:
-        optimizer = SGD(lr=train_data["lr"])
+        stride = stride = self.stride
 
-    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
-    model.summary()
+        train_gen = train_data["generator1"](train_files, train_data["batch_size"])
+        val_gen = train_data["generator2"](val_files, train_data["batch_size"], stride)
+        no_of_training_images = len(train_files)
 
-    stride = 2
+        if stride == 2:
+            no_of_val_images = 91
+        elif stride == 1:
+            no_of_val_images = 50
+        elif stride == self.time_step:
+            no_of_val_images = 657
+        else:
+            no_of_val_images = len(val_files)
 
-    train_gen = train_data["generator1"](train_files, train_data["batch_size"])
-    val_gen = train_data["generator2"](val_files, train_data["batch_size"], stride)
-    no_of_training_images = len(train_files)
+        # no_of_val_images = 50   # stride = 1,             no overlapping
+        # no_of_val_images = 91   # stride = 2,             stride/overlapping: 50%
+        # no_of_val_images = 657  # stride = time_step,     stride: 1
 
-    if stride == 2:
-        no_of_val_images = 91
-    elif stride == 1:
-        no_of_val_images = 50
-    elif stride == self.time_step:
-        no_of_val_images = 657
-    else:
-       no_of_val_images = len(val_files)
+        model_name = "_lr" + str(train_data["lr"]) + "_Opt" + train_data["opt"] + "_Model" + str(
+            train_data["model_name"]) + "_Feature" + self.feature_name + "_" + str(
+            train_data["iteration"]) + "_" + self.train_mode + "_modelType" + self.model_type + ".h5"
 
-    # no_of_val_images = 50   # stride = 1,             no overlapping
-    # no_of_val_images = 91   # stride = 2,             stride/overlapping: 50%
-    # no_of_val_images = 657  # stride = time_step,     stride: 1
+        def custom_scheduler(epoch):
+            print(0.01 / 10 ** (floor(epoch / 20) + 1))
+            return 0.01 / 10 ** (floor(epoch / 20) + 1)
 
-    model_name = "_lr" + str(train_data["lr"]) + "_Opt" + train_data["opt"] + "_Model" + str(
-        train_data["model_name"]) + "_Feature" + self.feature_name + "_" + str(
-        train_data["iteration"]) + "_" + self.train_mode + "_modelType" + self.model_type + ".h5"
+        cb = [ModelCheckpoint(
+            filepath=str(
+                "video_models_early_weights/videoModel_v{val_accuracy:.4f}_t{accuracy:.4f}_epoch{epoch:02d}" + model_name),
+            monitor="val_accuracy", save_weights_only=True),
+            TensorBoard(log_dir="Rearly_big_logs_video_" + self.train_mode, write_graph=True, write_images=True)]
+        if self.train_mode == "early_fusion":
+            cb += [LearningRateScheduler(custom_scheduler)]
+        history = model.fit_generator(train_gen, validation_data=val_gen, epochs=train_data["epoch"],
+                                      steps_per_epoch=(no_of_training_images // train_data["batch_size"]),
+                                      validation_steps=(no_of_val_images // train_data["batch_size"]),
+                                      workers=1, verbose=1, callbacks=cb)
+        print("\n\nTrain_Accuracy =", history.history['accuracy'])
+        print("\nVal_Accuracy =", history.history['val_accuracy'])
+        print("\n\nTrain_Loss =", history.history['loss'])
+        print("\nVal_Loss =", history.history['val_loss'])
 
-    def custom_scheduler(epoch):
-        print(0.01 / 10 ** (floor(epoch / 20) + 1))
-        return 0.01 / 10 ** (floor(epoch / 20) + 1)
+        model_name = "videoModel_" + str(history.history['val_accuracy'][-1]) + "_epoch" + str(
+            train_data["epoch"]) + model_name
 
-    cb = [ModelCheckpoint(
-        filepath=str("video_models_early_weights/videoModel_v{val_accuracy:.4f}_t{accuracy:.4f}_epoch{epoch:02d}" + model_name),
-        monitor="val_accuracy", save_weights_only=True),
-        TensorBoard(log_dir="Rearly_big_logs_video_" + self.train_mode, write_graph=True, write_images=True)]
-    if self.train_mode == "early_fusion":
-        cb += [LearningRateScheduler(custom_scheduler)]
-    history = model.fit_generator(train_gen, validation_data=val_gen, epochs=train_data["epoch"],
-                                  steps_per_epoch=(no_of_training_images // train_data["batch_size"]),
-                                  validation_steps=(no_of_val_images // train_data["batch_size"]),
-                                  workers=1, verbose=1, callbacks=cb)
-    print("\n\nTrain_Accuracy =", history.history['accuracy'])
-    print("\nVal_Accuracy =", history.history['val_accuracy'])
-    print("\n\nTrain_Loss =", history.history['loss'])
-    print("\nVal_Loss =", history.history['val_loss'])
+        print("\n\nModels saved as:", model_name)
+        print("Train:", history.history['accuracy'][-1], "Val:", history.history['val_accuracy'][-1])
+        # model.save("video_models/" + model_name)
+        model.save_weights("video_models_early_weights/" + model_name)
 
-    model_name = "videoModel_" + str(history.history['val_accuracy'][-1]) + "_epoch" + str(
-        train_data["epoch"]) + model_name
+        return model
 
-    print("\n\nModels saved as:", model_name)
-    print("Train:", history.history['accuracy'][-1], "Val:", history.history['val_accuracy'][-1])
-    # model.save("video_models/" + model_name)
-    model.save_weights("video_models_early_weights/" + model_name)
+    def print_stats(self, ground_truths, predictions, name):
+        cm = confusion_matrix(ground_truths, predictions, self.classes)
+        print("###" + name + " Results###\n")
+        # print_cm(cm, self.classes)
+        # print("\n\n")
+        print_cm(np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=3), self.classes)
+        print("\n\n")
+        print("Accuracy score: ", accuracy_score(ground_truths, predictions), "\n\n")
+        print("Report")
+        print(classification_report(ground_truths, predictions))
+        print("#################################################################end###\n\n\n")
 
-    return model
+    def print_confusion_matrix(self, path, stride):
+        """ IMPLEMENT FOR EARLY FUSION MISSING """
+        csv_fusion = {}
+        predictions = []
+        ground_truths = []
+        if self.train_mode == "early_fusion":
+            csv_fusion = self.load_early_csv("val")
+            print("CSV loaded", len(csv_fusion))
+            gen = self.early_gen_new_val(csv_fusion, 1, "eval", stride)
+            for x in gen:
+                ground_truths.append(vc.lb.inverse_transform(x[1])[0])
+                pred = vc.model.predict(x[0])
+                pred = vc.lb.inverse_transform(pred)
+                predictions.append(pred[0])
+                # print("\ngt, pred", self.lb.inverse_transform(x[1]), pred)
+            vc.print_stats(ground_truths, predictions, "Video")
+        else:
+            with open('lables_late_fusion' + self.feature_name + '.csv', 'r') as f:
+                f.readline()
+                csv_reader = csv.reader(f)
+                for row in csv_reader:
+                    csv_fusion[row[0]] = [row[1], row[2], row[3]]
+            a_p = []
+            f_p = []
+            files = glob.glob(path + "/*/*csv")
+            for file in files:
+                clip_id = basename(file).split(".")[0]
+                ground_truth, frame_pred, audio_pred = csv_fusion[clip_id]
+                sample = np.append(self.lb.transform(np.array([audio_pred])), self.lb.transform(np.array([frame_pred])))
+                pred = self.model.predict(sample.reshape((1, 14)))
+                pred = self.lb.inverse_transform(pred)[0]
+                predictions.append(pred)
+                a_p.append(audio_pred)
+                f_p.append(frame_pred)
+                ground_truths.append(ground_truth)
 
-
-def print_stats(self, ground_truths, predictions, name):
-    cm = confusion_matrix(ground_truths, predictions, self.classes)
-    print("###" + name + " Results###\n")
-    # print_cm(cm, self.classes)
-    # print("\n\n")
-    print_cm(np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=3), self.classes)
-    print("\n\n")
-    print("Accuracy score: ", accuracy_score(ground_truths, predictions), "\n\n")
-    print("Report")
-    print(classification_report(ground_truths, predictions))
-    print("#################################################################end###\n\n\n")
-
-
-def print_confusion_matrix(self, path):
-    """ IMPLEMENT FOR EARLY FUSION MISSING """
-    csv_fusion = {}
-    predictions = []
-    ground_truths = []
-    if self.train_mode == "early_fusion":
-        csv_fusion = self.load_early_csv("val")
-        print("CSV loaded", len(csv_fusion))
-        gen = self.early_gen_new_val(csv_fusion, 1, "eval", 2)
-        for x in gen:
-            ground_truths.append(vc.lb.inverse_transform(x[1])[0])
-            pred = vc.model.predict(x[0])
-            pred = vc.lb.inverse_transform(pred)
-            predictions.append(pred[0])
-            # print("\ngt, pred", self.lb.inverse_transform(x[1]), pred)
-        vc.print_stats(ground_truths, predictions, "Video")
-    else:
-        with open('lables_late_fusion' + self.feature_name + '.csv', 'r') as f:
-            f.readline()
-            csv_reader = csv.reader(f)
-            for row in csv_reader:
-                csv_fusion[row[0]] = [row[1], row[2], row[3]]
-        a_p = []
-        f_p = []
-        files = glob.glob(path + "/*/*csv")
-        for file in files:
-            clip_id = basename(file).split(".")[0]
-            ground_truth, frame_pred, audio_pred = csv_fusion[clip_id]
-            sample = np.append(self.lb.transform(np.array([audio_pred])), self.lb.transform(np.array([frame_pred])))
-            pred = self.model.predict(sample.reshape((1, 14)))
-            pred = self.lb.inverse_transform(pred)[0]
-            predictions.append(pred)
-            a_p.append(audio_pred)
-            f_p.append(frame_pred)
-            ground_truths.append(ground_truth)
-
-        self.print_stats(ground_truths, predictions, "Video")
-        self.print_stats(ground_truths, a_p, "Audio")
-        self.print_stats(ground_truths, f_p, "Frame")
+            self.print_stats(ground_truths, predictions, "Video")
+            self.print_stats(ground_truths, a_p, "Audio")
+            self.print_stats(ground_truths, f_p, "Frame")
 
 
 if __name__ == "__main__":
@@ -508,6 +506,8 @@ if __name__ == "__main__":
                           "e6": "emobase2010_600", "i6": "IS09_emotion_600",
                           "ef": "emobase2010_full", "if": "IS09_emotion_full"}
             for k in ["e6", "e3", "e1", "ef"]:
-                vc = VideoClassifier(train_mode="early_fusion", time_step=16, feature_name=arff_paths[k], model_type=mt)
-                vc.print_confusion_matrix("")
+                vc = VideoClassifier(train_mode="early_fusion", time_step=16, feature_name=arff_paths[k], model_type=mt,
+                                     stride=2)
+                vc.print_confusion_matrix("", 2)
+                vc.print_confusion_matrix("", 1)
                 del vc
