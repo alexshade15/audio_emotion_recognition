@@ -309,42 +309,38 @@ class VideoClassifier:
     def early_gen_new_val(self, list_files, batch_size, mode="val", stride=2):
         """ stride 50% sul su tutti i file """
         c = 0
-        clip_index = 0
         clip_ids = list(list_files.keys())
         while True:
             try:
-                video_info = list_files[clip_ids[clip_index]]
-                ground_truth = video_info[0][0]
-                csv_path = '/user/vlongobardi/AFEW/aligned/Val/GroundTruth/ID.csv'
-                csv_path = csv_path.replace("GroundTruth", ground_truth).replace("ID", clip_ids[clip_index])
-                images = DataGen(csv_path, '', 1, 31, NoAug(), 16, 1, 12, test=True)[0][0][0]
-                first_frame_num = int(video_info[0][1].split("_")[-1].split(".")[0])
+                for clip_id in clip_ids:
+                    video_info = list_files[clip_id]
+                    ground_truth = video_info[0][0]
+                    csv_path = '/user/vlongobardi/AFEW/aligned/Val/GroundTruth/ID.csv'
+                    csv_path = csv_path.replace("GroundTruth", ground_truth).replace("ID", clip_id)
+                    images = DataGen(csv_path, '', 1, 31, NoAug(), 16, 1, 12, test=True)[0][0][0]
+                    first_frame_num = int(video_info[0][1].split("_")[-1].split(".")[0])
 
-                for start in range(0, len(video_info) - self.time_step, self.time_step // stride):
-                    if c == 0:
-                        labels = []
-                        features = [np.zeros((batch_size, self.feature_num)).astype('float')] * self.time_step
-                        features.append(np.zeros((batch_size, self.time_step, 224, 224, 3)).astype('float'))
+                    for start in range(0, len(video_info) - self.time_step, self.time_step // stride):
+                        if c == 0:
+                            labels = []
+                            features = [np.zeros((batch_size, self.feature_num)).astype('float')] * self.time_step
+                            features.append(np.zeros((batch_size, self.time_step, 224, 224, 3)).astype('float'))
 
-                    for index, elem in enumerate(video_info[start:self.time_step + start]):
-                        audio_path = elem[2]
-                        features[-1][c][index] = images[first_frame_num + start + index]
-                        features[index][c] = np.array(from_arff_to_feture(audio_path)).reshape(self.feature_num, )
-                    labels.append(ground_truth)
+                        for index, elem in enumerate(video_info[start:self.time_step + start]):
+                            audio_path = elem[2]
+                            features[-1][c][index] = images[first_frame_num + start + index]
+                            features[index][c] = np.array(from_arff_to_feture(audio_path)).reshape(self.feature_num, )
+                        labels.append(ground_truth)
 
-                    c += 1
-                    if c == batch_size:
-                        c = 0
-                        labels = self.lb.transform(np.array(labels)).reshape((batch_size, 7))
-                        yield features, labels
-
-                clip_index += 1
-                if clip_index >= len(clip_ids):
-                    clip_index = 0
+                        c += 1
+                        if c == batch_size:
+                            c = 0
+                            labels = self.lb.transform(np.array(labels)).reshape((batch_size, 7))
+                            yield features, labels
             except Exception as ex:
                 print("\n\nEXCEPTION")
                 traceback.print_exception(type(ex), ex, ex.__traceback__)
-                print("\nclip_index:", clip_index, "\nlen(clip_ids)", len(clip_ids))
+                print("\nclip_index:", clip_id, "\nlen(clip_ids)", len(clip_ids))
                 print("\ncsv_path", csv_path, "\nstart", start, "\nc", c)
             if mode == "eval":
                 break
