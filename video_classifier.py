@@ -65,9 +65,10 @@ class VideoClassifier:
         skips = 0
         iters = 1
         bs = 16
-        ep = 50
+        ep = 150
         opts = ["SGD", "Adam"]
-        lrs = [0.001]
+        #lrs = [0.1, 0.01, 0.001, 0.0001]
+        lrs = [0.01]
         if self.train_mode == "late_fusion":
             models = [a_model5_2, a_model5_3, a_model7, a_model7_1]
         else:
@@ -113,7 +114,7 @@ class VideoClassifier:
                             m = model((self.time_step, 224, 224, 3), dim=self.model_type)
 
                         self.model = self.train(t_files, v_files, train_infos, m)
-
+                        del self.model
                         # sys.stdout = old_stdout
                         # log_file.close()
 
@@ -385,11 +386,11 @@ class VideoClassifier:
         no_of_training_images = len(train_files)
 
         if stride == 2:
-            no_of_val_images = 91
+            no_of_val_images = 1461
         elif stride == 1:
-            no_of_val_images = 50
+            no_of_val_images = 811
         elif stride == self.time_step:
-            no_of_val_images = 657
+            no_of_val_images = 10518
         else:
             no_of_val_images = len(val_files)
 
@@ -399,17 +400,17 @@ class VideoClassifier:
 
         model_name = "_lr" + str(train_data["lr"]) + "_Opt" + train_data["opt"] + "_Model" + str(
             train_data["model_name"]) + "_Feature" + self.feature_name + "_" + str(
-            train_data["iteration"]) + "_" + self.train_mode + "_modelType" + self.model_type + ".h5"
+            train_data["iteration"]) + "_" + self.train_mode + "_modelType" + str(self.model_type) + ".h5"
 
         def custom_scheduler(epoch):
-            print(0.01 / 10 ** (floor(epoch / 20) + 1))
-            return 0.01 / 10 ** (floor(epoch / 20) + 1)
+            print(0.1 / 10 ** (floor(epoch / 30) + 1))
+            return 0.1 / 10 ** (floor(epoch / 30) + 1)
 
         cb = [ModelCheckpoint(
             filepath=str(
-                "video_models_early_weights/videoModel_v{val_accuracy:.4f}_t{accuracy:.4f}_epoch{epoch:02d}" + model_name),
+                "ultimate_early_weights/videoModel_v{val_accuracy:.4f}_t{accuracy:.4f}_epoch{epoch:02d}" + model_name),
             monitor="val_accuracy", save_weights_only=True),
-            TensorBoard(log_dir="Rearly_big_logs_video_" + self.train_mode, write_graph=True, write_images=True)]
+            TensorBoard(log_dir="Ultimate_logs_" + self.train_mode + str(self.model_type), write_graph=True, write_images=True)]
         if self.train_mode == "early_fusion":
             cb += [LearningRateScheduler(custom_scheduler)]
         history = model.fit_generator(train_gen, validation_data=val_gen, epochs=train_data["epoch"],
@@ -493,7 +494,7 @@ if __name__ == "__main__":
         vc = VideoClassifier(train_mode="late_fusion", audio_model_path=model_path)
         # vc.print_confusion_matrix("/user/vlongobardi/AFEW/aligned/Val")
     else:
-        mts = [0, 1, 2]
+        mts = [int(sys.argv[2])]
         print("EARLY")
         for mt in mts:
             print("Model_type:", mt)
@@ -501,9 +502,9 @@ if __name__ == "__main__":
                           "e3": "emobase2010_300", "i3": "IS09_emotion_300",
                           "e6": "emobase2010_600", "i6": "IS09_emotion_600",
                           "ef": "emobase2010_full", "if": "IS09_emotion_full"}
-            for k in ["e6", "e3", "e1", "ef"]:
+            for k in ["e1", "e3", "e6", "ef"]:
                 vc = VideoClassifier(train_mode="early_fusion", time_step=16, feature_name=arff_paths[k], model_type=mt,
                                      stride=2)
-                vc.print_confusion_matrix("", 2)
-                vc.print_confusion_matrix("", 1)
+                #vc.print_confusion_matrix("", 2)
+                #vc.print_confusion_matrix("", 1)
                 del vc
