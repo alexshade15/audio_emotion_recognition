@@ -19,7 +19,7 @@
 # so expect some variability in performance if you change these. The patch hop can
 # be changed arbitrarily: a smaller hop should give you more patches from the same
 # clip and possibly better performance at a larger computational cost.
-SAMPLE_RATE = 16000
+SAMPLE_RATE = 48000  # 16000
 STFT_WINDOW_SECONDS = 0.025
 STFT_HOP_SECONDS = 0.010
 MEL_BANDS = 64

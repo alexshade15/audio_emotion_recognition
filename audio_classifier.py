@@ -62,12 +62,12 @@ class AudioClassifier:
         else:
             # fine tuning
             skips = 0
-            iters = 10
+            iters = 3
             bs = 16
-            ep = 150
+            ep = 30
             opts = ["SGD"]
-            lrs = [0.1, 0.01, 0.001, 0.0001, 0.00001]  # , 0.0001]
-            models = [a_model7, a_model7_1]
+            lrs = [0.01, 0.001]  # , 0.0001]
+            models = [a_model7] # mode7_1
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
                 for opt in opts:
@@ -196,7 +196,7 @@ class AudioClassifier:
 
         cb = [ModelCheckpoint(filepath="audio_models/audioModel_{val_accuracy:.4f}_epoch{epoch:02d}" + model_name,
                               monitor="val_accuracy"),
-              TensorBoard(log_dir="FULL_AUDIO_LOG", write_graph=True, write_images=True)]
+              TensorBoard(log_dir="LAST_AUDIO_LOG", write_graph=True, write_images=True)]
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
                                       validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
                                       verbose=1, callbacks=cb)
@@ -216,7 +216,7 @@ class AudioClassifier:
 
 if __name__ == "__main__":
     audio_path = {"e1": "emobase2010_100", "e3": "emobase2010_300", "e6": "emobase2010_600", "ef": "emobase2010_full"}
-    for e in ["ef"]:  # , "e3", "e6"]:
+    for e in ["e3", "e6"]:
         ap = "/user/vlongobardi/late_feature/" + audio_path[e] + "/"
         print("######################## AUDIO PATH: ", ap)
         ac = AudioClassifier(base_path=ap)

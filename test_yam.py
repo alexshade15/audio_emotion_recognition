@@ -50,7 +50,7 @@ class RandomAudioGenerator(Sequence):
     def __getitem__(self, index):
 
         self.num_batch += 1
-        print("OK, THIS IS CALL #", self.num_batch)
+        #print("OK, THIS IS CALL #", self.num_batch)
 
         X_batch = []
         y_batch = []
@@ -61,7 +61,15 @@ class RandomAudioGenerator(Sequence):
                 file_idx = self.y_ind[i][np.random.randint(len(self.y_ind[i]))]
 
                 # select random frame from the selected file
-                start = np.random.randint(self.X[file_idx].shape[0] - self.win_samples)
+                if self.X[file_idx].shape[0] < self.win_samples:
+                    #continue
+                    print("\nRandom self.X[file_idx].shape[0] - self.win_samples:")
+                    print("Random:", (self.X[file_idx].shape[0], "-", self.win_samples))
+
+                if self.X[file_idx].shape[0] == self.win_samples:
+                    start = 0
+                else:
+                    start = np.random.randint(self.X[file_idx].shape[0] - self.win_samples)
                 end = start + self.win_samples
 
                 data = self.X[file_idx][start:end]
@@ -104,6 +112,8 @@ class SequentialAudioGenerator(Sequence):
             data, sound_sr = librosa.load(file_path, self.sr)
             data = data if self.transform is None else self.transform(data, sound_sr)
 
+            #print("0, data.shape[0] - self.win_samples, self.hop_samples")
+            #print(0, data.shape[0], self.win_samples, self.hop_samples)
             for start in range(0, data.shape[0] - self.win_samples, self.hop_samples):
                 self.X.append(data[start:start + self.win_samples])
 
@@ -130,8 +140,8 @@ class Extractor:
 
     def __init__(self):
         self.sr = 48000
-        self.win_sec = 0.6  # 025
-        self.hop_sec = 0.3  # 010
+        self.win_sec = 0.025
+        self.hop_sec = 0.010
         self.win_samples = int(self.sr * self.win_sec)
         self.hop_samples = int(self.sr * self.hop_sec)
 
@@ -180,7 +190,7 @@ def get_data_for_generator(dataset="Train"):
 if __name__ == "__main__":
     X_train, y_train = get_data_for_generator("Train")
     X_val, y_val = get_data_for_generator("Val")
-    samples_per_class = 500
+    samples_per_class = 5
     batches_per_epoch = 100
     sr = 48000
     win_sec = 0.6  # 0.1, 0.3, 0.6, full
@@ -189,13 +199,23 @@ if __name__ == "__main__":
 
     train_gen = RandomAudioGenerator(X_train, y_train, samples_per_class, batches_per_epoch, sr=sr, win_sec=win_sec,
                                      transform=transform, augment=augment)
-    val_gen = SequentialAudioGenerator(X_val, y_val, batch_size=128, sr=sr, win_sec=win_sec, hop_sec=hop_sec,
+    val_gen = SequentialAudioGenerator(X_val, y_val, batch_size=2, sr=sr, win_sec=win_sec, hop_sec=hop_sec,
                                        transform=transform)
 
-    model = YAMNet(weights='keras_yamnet/yamnet_conv.h5', classes=7, classifier_activation='softmax')
-    model.compile(loss='categorical_crossentropy', optimizer=Adagrad(lr=0.003, decay=1e-6), metrics=['accuracy'])
-    model.summary()
-    callbacks = [EarlyStopping(monitor='val_accuracy', patience=20, mode='max', restore_best_weights=True)]
+    i=0
+    for elem in train_gen:
+        i+=1
+    print("Number of generation", i)
 
-    model.fit_generator(train_gen, steps_per_epoch=batches_per_epoch, epochs=5, callbacks=callbacks,
-                        validation_data=val_gen, shuffle=False, validation_steps=batches_per_epoch)
+    model = YAMNet(weights='keras_yamnet/yamnet_conv.h5', input_shape=(58, 64), classes=7, classifier_activation='softmax')
+    model.compile(loss='categorical_crossentropy', optimizer=Adagrad(lr=0.003, decay=1e-6), metrics=['accuracy'])
+    #model.summary()
+    #callbacks = [EarlyStopping(monitor='val_accuracy', patience=20, mode='max', restore_best_weights=True)]
+
+    h = model.fit_generator(train_gen, steps_per_epoch=batches_per_epoch, epochs=10, #callbacks=callbacks,
+                        validation_data=val_gen, shuffle=False, validation_steps=batches_per_epoch, verbose=1)
+
+    print("\n\nTrain_Accuracy =", h.history['accuracy'])
+    print("\nVal_Accuracy =", h.history['val_accuracy'])
+    print("\n\nTrain_Loss =", h.history['loss'])
+    print("\nVal_Loss =", h.history['val_loss'])

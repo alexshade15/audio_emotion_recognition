@@ -62,7 +62,7 @@ def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight
     dense_h0 = Dense(cell_dim, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay))(features_mean_layer)
     dense_c0 = Dense(cell_dim, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay))(features_mean_layer)
 
-    Rnn_attention = RNNStackedAttention(reshape_dim, cells, return_sequences=True, unroll=True)
+    Rnn_attention = RNNStackedAttention(reshape_dim, cells, return_sequences=True, unroll=True, dim=dim)
     x = Rnn_attention(x, initial_state=[dense_h0, dense_c0])
     x = TimeDistributed(
         Dense(100, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay), name='ff_logit_lstm'))(x)
@@ -80,8 +80,10 @@ def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight
     x = Lambda(lambda y: tf.reduce_mean(y, axis=1))(x)
 
     input_tensors = Rnn_attention.get_audio_tensors()
-    input_tensors.append(input_layer)
-
+    if len(input_tensors) > 0:
+        input_tensors.append(input_layer)
+    else:
+        input_tensors = input_layer
     model = Model(input_tensors, x)
     model.layers[1].trainable = train_all_baseline
 

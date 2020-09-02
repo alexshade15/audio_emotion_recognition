@@ -140,3 +140,5 @@ mytest.sh
 video_models/
 Models/model_sharma.py
 myRNN.py
+*.csv
+job.sh

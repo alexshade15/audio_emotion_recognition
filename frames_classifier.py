@@ -10,7 +10,7 @@ from inference import Inference
 class FramesClassifier:
     def __init__(self, weights_path="/user/vlongobardi/checkpoint_best.hdf5", time_step=16, overlap=.5):
         self.time_step = time_step
-        self.model = SharmaNet((self.time_step, 224, 224, 3), classification=True, weights='afew')
+        self.model = SharmaNet((self.time_step, 224, 224, 3), classification=True, weights='afew', dim=-1)
         self.model.load_weights(weights_path)
         self.feature_generator = None
         self.inference = Inference(model=self.model, custom_inference=True, time_step=self.time_step)

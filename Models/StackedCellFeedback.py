@@ -82,11 +82,12 @@ class StackedCellFeedback(StackedRNNCells):
             # print("counter_cells " + str(counter_cells))
             if counter_cells == 0:
                 inputs = x_calculation([inputs, self.current_map])
-                audio_input = Input(shape=self.audio_shape)
-                self.audio_tensors.append(audio_input)
-                inputs = Concatenate(name='fusion1')([inputs, audio_input])
-                if self.dim == 0 or self.dim == 3:
-                    inputs = Dense(2048, activation='relu', name='fusion2')(inputs)
+                if self.dim >= 0:
+                    audio_input = Input(shape=self.audio_shape)
+                    self.audio_tensors.append(audio_input)
+                    inputs = Concatenate(name='fusion1')([inputs, audio_input])
+                    if self.dim == 0 or self.dim == 3:
+                        inputs = Dense(2048, activation='relu', name='fusion2')(inputs)
             # print("has_arg(cell.call, 'constants'):", has_arg(cell.call, 'constants'))
             if has_arg(cell.call, 'constants'):
                 inputs, states = cell.call(inputs, states,

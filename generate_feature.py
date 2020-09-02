@@ -12,8 +12,8 @@ def to_milliseconds(t_stamp):
 
 
 def to_t_stamp(milliseconds):
-    s = milliseconds // 6000
-    milliseconds = milliseconds % 6000
+    s = milliseconds // 1000
+    milliseconds = milliseconds % 1000
     string_sec = str(s)
     if len(string_sec) == 1:
         string_sec = "0" + string_sec

@@ -1,13 +1,15 @@
+import os
 import glob
 import random
 import operator
 import librosa
 import traceback
 import numpy as np
+from math import ceil, floor
 
 from keras.models import load_model
 from keras.optimizers import Adam, SGD, Adagrad
-from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
+from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping, LearningRateScheduler
 
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
@@ -46,7 +48,9 @@ def augment(x):
 
 def get_feature_number(feature_name):
     if "full" in feature_name:
-        return 387  # No! Non e costante!
+        return 620 #max_length
+    elif "1000" in feature_name:
+        return 98  #48000
     elif "600" in feature_name:
         return 58
     elif "300" in feature_name:
@@ -75,11 +79,11 @@ class YamNetClassifier:
             self.feature_number = get_feature_number(model_path)
         else:
             skips = 0
-            iters = 2
+            iters = 1
             bs = 16  # 128
             ep = 50
-            opts = ["SGD", "Adam", "Adagrad"]
-            lrs = [0.01, 0.001, 0.0001]  # 0.003
+            opts = ["Adagrad", "Adam", "SGD"]
+            lrs = [0.01, 0.001]  # 0.003
             models = [YAMNet]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
@@ -127,20 +131,31 @@ class YamNetClassifier:
             for i in range(c, c + batch_size):
                 try:
                     signal, sound_sr = librosa.load(list_feature_vectors[i], 48000)
+                    #if len(signal) < 48000:
+                    #    print("len(signal), len(signal)/sound_sr")
+                    #    print(len(signal), len(signal)/sound_sr)
+                    #    print(list_feature_vectors[i])
+                    if "full" in self.feature_name and len(signal) < 298368: #max_length
+                        mul = np.tile(signal, 298368//len(signal))
+                        add = signal[:298368%len(signal)]
+                        signal = np.concatenate([mul, add])
+
                     mel = preprocess_input(signal, sound_sr)
                     mel = mel if aug is None else aug(mel)
                     features[i - c] = np.array(mel)
                     labels.append(list_feature_vectors[i].split("/")[-2])
                 except:
+                    print("\n\nEXCEPTION!")
                     traceback.print_exc()
                     print("signal shape:", librosa.load(list_feature_vectors[i], 48000)[0].shape)
                     signal, sound_sr = librosa.load(list_feature_vectors[i], 48000)
-                    print(preprocess_input(signal, sound_sr).shape)
-                    print("\n\ni:", i, "\nc:", c, "\nist_feature_vectors[i]:", list_feature_vectors[i])
+                    print(preprocess_input(signal, sound_sr).shape, "\n", len(signal))
+                    print("ist_feature_vectors[i]:", list_feature_vectors[i])
             c += batch_size
             if c + batch_size > len(list_feature_vectors):
                 c = 0
-                random.shuffle(list_feature_vectors)
+                if mode == "train":
+                    random.shuffle(list_feature_vectors)
                 if mode == "eval":
                     break
             try:
@@ -173,11 +188,16 @@ class YamNetClassifier:
         no_of_val_images = len(val_files)
 
         model_name = "_lr" + str(learning_rate) + "_Opt" + myopt + "_Model" + str(self.current_model_name) + \
-                     "_Feature" + self.feature_name + "_" + str(self.iteration) + ".h5"
+                     "_Feature" + self.feature_name + "_FeatureNumber" + str(self.feature_number)  + "_" + str(self.iteration) + ".h5"
+
+        def custom_scheduler(epoch):
+            print(0.1 / 10 ** (floor(epoch / 15) + 1))
+            return 0.1 / 10 ** (floor(epoch / 15) + 1)
 
         cb = [ModelCheckpoint(filepath="audio_models/audioModel_{val_accuracy:.4f}_epoch{epoch:02d}" + model_name,
                               monitor="val_accuracy", save_best_only=True),
               TensorBoard(log_dir="FULL_AUDIO_LOG", write_graph=True, write_images=True)]
+        #cb += [LearningRateScheduler(custom_scheduler)]
         # EarlyStopping(monitor='val_accuracy', patience=10, mode='max')]
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
                                       validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
@@ -195,31 +215,79 @@ class YamNetClassifier:
 
         return model
 
-    def clip_classification(self, dataset_path):
+    def X_clip_classification(self):
         all_predictions = {}
         for c in self.classes:
             all_predictions[c] = 0
-        val_files = get_data_for_generator(dataset_path)
-        for feature_vector_path in val_files:
-            pred, ground_truth = self.test_model(feature_vector_path)
+        val_files = get_data_for_generator("/user/vlongobardi/late_feature/" + self.feature_name + "/Val")
+        val_gen = self.data_gen(val_files, 1, "eval")
+        for elem in val_gen:
+            ground_truth = self.lb.inverse_transform(batch[1])[0]
+            pred = self.lb.inverse_transform(self.model.predict(batch[0]))[0]
             all_predictions[pred] += 1
         return max(all_predictions.items(), key=operator.itemgetter(1))[0]
 
-    def test_model(self, sample_path):
-        signal, sound_sr = librosa.load(sample_path, 48000)
-        mel = preprocess_input(signal, sound_sr)
-        ground_truth = sample_path.split("/")[-2]
-        prediction = self.model.predict(mel)
-        return self.lb.inverse_transform(prediction)[0], ground_truth
-
-    def print_confusion_matrix(self, path):
+    def print_confusion_matrix(self):
         predictions = []
         ground_truths = []
         stats = []
-        for file_path in get_data_for_generator(path + "Val"):
-            pred, ground_truth = self.test_model(file_path)
+        files = get_data_for_generator("/user/vlongobardi/late_feature/" + self.feature_name + "/Val")
+        val_gen = self.data_gen(files, 1, "eval")
+        for batch in val_gen:
+            ground_truth = self.lb.inverse_transform(batch[1])[0]
+            pred = self.lb.inverse_transform(self.model.predict(batch[0]))[0]
             predictions.append(pred)
             ground_truths.append(ground_truth)
+
+        #print("\n\n ground_truths", ground_truths)
+        #print("\n\n predictions", predictions)
+        #print("\n\n classes", self.classes)
+
+
+        cm = confusion_matrix(ground_truths, predictions, self.classes)
+        stats.append(cm)
+        stats.append(np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=2))
+        stats.append(accuracy_score(ground_truths, predictions))
+        stats.append(classification_report(ground_truths, predictions))
+
+        print("###Results###")
+        for index, elem in enumerate(stats):
+            if index < 2:
+                print_cm(elem, self.classes)
+            elif index == 2:
+                print("Accuracy score: ", elem)
+            else:
+                print("Report")
+                print(elem)
+            print("\n\n")
+
+    def clip_classification(self):
+        predictions = []
+        ground_truths = []
+        stats = []
+        for c in self.classes:
+            clip_ids = set()
+            class_files = glob.glob("/user/vlongobardi/late_feature/" + self.feature_name + "/Val/" + c + "/*.wav")
+            #print("Path: /user/vlongobardi/late_feature/" + self.feature_name + "/Val/" + c + "/*.wav", len(class_files))
+
+            for file in class_files:
+                clip_ids.add(file.split("/")[-1].split("_")[0])
+            for clip_id in clip_ids:
+                #print("Clip ID:", clip_id)
+                all_predictions = {}
+                for elem in self.classes:
+                    all_predictions[elem] = 0
+                files_clip_id = []
+                for file in class_files:
+                    if clip_id in file:
+                        files_clip_id.append(file)
+                val_gen = self.data_gen(files_clip_id, 1, "eval")
+                for batch in val_gen:
+                    pred = self.lb.inverse_transform(self.model.predict(batch[0]))[0]
+                    all_predictions[pred] += 1
+                predictions.append(max(all_predictions.items(), key=operator.itemgetter(1))[0])
+                ground_truths.append(c)
+                #print("Pred:", max(all_predictions.items(), key=operator.itemgetter(1))[0], "\n GT:", c, "\n\n")
 
         cm = confusion_matrix(ground_truths, predictions, self.classes)
         stats.append(cm)
@@ -240,8 +308,8 @@ class YamNetClassifier:
 
 
 if __name__ == "__main__":
-    audio_path = {"e1": "emobase2010_100", "e3": "emobase2010_300", "e6": "emobase2010_600", "ef": "emobase2010_full"}
-    for e in ["e3", "e1"]:
+    audio_path = {"e1": "emobase2010_100", "e3": "emobase2010_300", "e6": "emobase2010_600", "es": "emobase2010_1000", "ef": "emobase2010_full"}
+    for e in ["es"]:
         ap = "/user/vlongobardi/late_feature/" + audio_path[e] + "_wav/"
         print("######################## AUDIO PATH: ", ap)
         ync = YamNetClassifier(base_path=ap)
