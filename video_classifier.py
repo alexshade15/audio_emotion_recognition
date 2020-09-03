@@ -288,38 +288,7 @@ class VideoClassifier:
             labels = self.lb.transform(np.array(labels)).reshape((batch_size, 7))
             yield features, labels
 
-    def early_gen_old_val(self, list_files, batch_size, mode):
-        c = 0
-        clip_ids = list(list_files.keys())
-        random.shuffle(clip_ids)
-        while True:
-            labels = []
-            features = [np.zeros((batch_size, self.feature_num)).astype('float')] * self.time_step
-            features.append(np.zeros((batch_size, self.time_step, 224, 224, 3)).astype('float'))
-            for i in range(c, c + batch_size):
-                clip_id = clip_ids[i]
-                video_info = list_files[clip_id]
-                ground_truth = video_info[0][0]
-                csv_path = '/user/vlongobardi/AFEW/aligned/Val/GroundTruth/ID.csv'
-                csv_path = csv_path.replace("GroundTruth", ground_truth).replace("ID", clip_id)
-                images = DataGen(csv_path, '', 1, 31, NoAug(), 16, 1, 12, test=True)[0][0][0]
-                first_frame_num = int(video_info[0][1].split("_")[-1].split(".")[0])
-                start = random.randint(0, len(video_info) - self.time_step)
-                for index, elem in enumerate(video_info[start:self.time_step + start]):
-                    ground_truth, _, audio_path = elem
-                    features[-1][i - c][index] = images[first_frame_num + start + index]
-                    features[index][i - c] = np.array(from_arff_to_feture(audio_path)).reshape(self.feature_num, )
-                labels.append(ground_truth)
-            c += batch_size
-            if c + batch_size > len(clip_ids):
-                c = 0
-                if mode == "eval":
-                    break
-                random.shuffle(clip_ids)
-            labels = self.lb.transform(np.array(labels)).reshape((batch_size, 7))
-            yield features, labels
-
-    def early_gen_new_val(self, list_files, batch_size, mode="val", stride=2):
+    def early_gen_new_val(self, list_files, batch_size, mode="val", stride=1):
         """ stride 50% sul su tutti i file """
         c = 0
         clip_ids = list(list_files.keys())
@@ -358,7 +327,7 @@ class VideoClassifier:
             if mode == "eval":
                 break
 
-    def early_gen_test_clip(self, list_files, clip_id, stride=2):
+    def early_gen_test_clip(self, list_files, clip_id, stride=1):
         """ stride su singolo file, quindi va richiamato per ogni file """
         ground_truth = list_files[0][0]
         csv_path = '/user/vlongobardi/AFEW/aligned/Val/GroundTruth/ID.csv'
@@ -422,9 +391,9 @@ class VideoClassifier:
             val_gen = train_data["generator2"](val_files, train_data["batch_size"])
             no_of_val_images = len(val_files)
 
-        # no_of_val_images = 50   # stride = 1,             no overlapping
-        # no_of_val_images = 91   # stride = 2,             stride/overlapping: 50%
-        # no_of_val_images = 657  # stride = time_step,     stride: 1
+        ## stride = 1,             no overlapping
+        ## stride = 2,             overlapping: 50%
+        ## stride = time_step,     stride: 1
 
         model_name = "_lr" + str(train_data["lr"]) + "_Opt" + train_data["opt"] + "_Model" + str(
             train_data["model_name"]) + "_Feature" + self.feature_name + "_" + str(
@@ -504,7 +473,7 @@ class VideoClassifier:
         #print(classification_report(ground_truths, predictions))
         print("#################################################################end###\n\n\n")
 
-    def print_confusion_matrix(self, path, stride=1):
+    def print_confusion_matrix(self, stride=1):
         """ IMPLEMENT FOR EARLY FUSION MISSING """
         csv_fusion = {}
         predictions = []
@@ -528,7 +497,7 @@ class VideoClassifier:
                     csv_fusion[row[0]] = [row[1], row[2], row[3]]
             a_p = []
             f_p = []
-            files = glob.glob(path + "/*/*csv")
+            files = glob.glob("/user/vlongobardi/late_feature/", self.feature_name, "/*/*csv")
             for file in files:
                 clip_id = basename(file).split(".")[0]
                 ground_truth, frame_pred, audio_pred = csv_fusion[clip_id]

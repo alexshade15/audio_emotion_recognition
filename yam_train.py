@@ -215,14 +215,14 @@ class YamNetClassifier:
 
         return model
 
-    def X_clip_classification(self):
+    def clip_classification(self, path_clip):
         all_predictions = {}
         for c in self.classes:
             all_predictions[c] = 0
-        val_files = get_data_for_generator("/user/vlongobardi/late_feature/" + self.feature_name + "/Val")
+        val_files = get_data_for_generator(path_clip , "*.wav")
         val_gen = self.data_gen(val_files, 1, "eval")
         for elem in val_gen:
-            ground_truth = self.lb.inverse_transform(batch[1])[0]
+            #ground_truth = self.lb.inverse_transform(batch[1])[0]
             pred = self.lb.inverse_transform(self.model.predict(batch[0]))[0]
             all_predictions[pred] += 1
         return max(all_predictions.items(), key=operator.itemgetter(1))[0]
@@ -261,7 +261,7 @@ class YamNetClassifier:
                 print(elem)
             print("\n\n")
 
-    def clip_classification(self):
+    def clip_evaluation(self):
         predictions = []
         ground_truths = []
         stats = []
