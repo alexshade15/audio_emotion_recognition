@@ -1,7 +1,15 @@
 import subprocess
-from os import listdir, path
 import sys
+import glob
+import librosa
+import numpy as np
+
 from tqdm import tqdm
+from os import listdir, path
+from keras.models import Model
+
+from keras_yamnet.preprocessing import preprocess_input
+from keras_yamnet.yamnet import YAMNet
 
 
 def to_milliseconds(t_stamp):
@@ -15,9 +23,15 @@ def to_t_stamp(milliseconds):
     s = milliseconds // 1000
     milliseconds = milliseconds % 1000
     string_sec = str(s)
+    if milliseconds < 10:
+        zero = "00"
+    elif milliseconds < 100:
+        zero = "0"
+    else:
+        zero = ""
     if len(string_sec) == 1:
         string_sec = "0" + string_sec
-    return "00:00:" + string_sec + "." + str(milliseconds)
+    return "00:00:" + string_sec + "." + zero + str(milliseconds)
 
 
 def generate_files(base_dir):
@@ -55,13 +69,14 @@ def execute_command(wav_dir, file_path, frame_size, clip_dir, i, offset=0):
 
     cmd = "ffmpeg -y" + ss_option + " -i " + wav_dir + file_path + ".wav -t " + to_t_stamp(
         frame_size) + " -ab 128k -ac 2 -ar 48000 -vn " + clip_dir + file_path + "_" + str(i) + ".wav"
+    #print(cmd, "\n")
     subprocess.call(cmd, shell=True)
 
 
 def from_wav_to_clips(frame_size=300, frame_step=150, offset=0):
     """ For each audio-clip generate a sub-audio-clips with specific frame size and overlapping """
     wav_dir = "/user/vlongobardi/temp_wav/"
-    clip_dir = "/user/vlongobardi/temp_clips/"
+    clip_dir = "/user/vlongobardi/temp_clips_" + str(frame_size) + "/"
     for file_path in tqdm(generate_files(wav_dir)):
         cmd = "ffmpeg -y -i " + wav_dir + file_path + ".wav temp_output.wav"
 
@@ -89,6 +104,69 @@ def from_clips_to_feature(cfg_file="emobase2010.conf", frame_size=300, middle_fe
         cmd = "SMILExtract -C " + config_path + " -I " + base_dir + file_path + ".wav -O " + feature_dir + file_path + \
               ".arff"
         subprocess.call(cmd, shell=True)
+
+def yamnet_extract(weights):
+    if "full" in weights:
+        win_size = "full"
+        feature_number = 620 #max_length
+    elif "1000" in weights:
+        feature_number = 98  #48000
+        win_size = "1000"
+    elif "600" in weights:
+        feature_number = 58
+        win_size = "600"
+    elif "300" in weights:
+        feature_number = 28
+        win_size = "300"
+    elif "100" in weights:
+        feature_number = 8
+        win_size = "100"
+
+    m = YAMNet(classes=7, classifier_activation='softmax', input_shape=(feature_number, 64))
+    m.load_weights(weights)
+    model = Model(input=m.input, output=m.layers[-3].output)
+
+    train_wavs = glob.glob("/user/vlongobardi/early_feature/temp_clips_" + win_size + "/Train/*/*.wav")
+    val_wavs = glob.glob("/user/vlongobardi/early_feature/temp_clips_" + win_size + "/Val/*/*.wav")
+
+    #print("m output shape", m.output)
+    #print("model output shape", model.output)
+    execeptions = []
+    for wav in tqdm(train_wavs):
+      try:
+        #print("wav", wav)
+        c = wav.split("/")[-2]
+        id = wav.split("/")[-1].split(".")[0]
+        signal, sound_sr = librosa.load(wav, 48000)
+        if win_size == "full" and len(signal) < 298368: #max_length
+            mul = np.tile(signal, 298368//len(signal))
+            add = signal[:298368%len(signal)]
+            signal = np.concatenate([mul, add])
+        mel = preprocess_input(signal, sound_sr)
+        mel = mel.reshape(1, feature_number, 64)
+        feature = model.predict(mel)
+        np.save("/user/vlongobardi/early_feature/emobase2010_" + win_size + "_yam/Train/" + c + "/" + id + ".npy", feature)
+      except ValueError:
+        execeptions.append(wav)
+        print("wav", wav)
+
+    for wav in tqdm(val_wavs):
+      try:
+        c = wav.split("/")[-2]
+        id = wav.split("/")[-1].split(".")[0]
+        signal, sound_sr = librosa.load(wav, 48000)
+        if win_size == "full" and len(signal) < 298368: #max_length
+            mul = np.tile(signal, 298368//len(signal))
+            add = signal[:298368%len(signal)]
+            signal = np.concatenate([mul, add])
+        mel = preprocess_input(signal, sound_sr)
+        mel = mel.reshape(1, feature_number, 64)
+        feature = model.predict(mel)
+        np.save("/user/vlongobardi/early_feature/emobase2010_" + win_size + "_yam/Val/" + c + "/" + id + ".npy", feature)
+      except ValueError:
+        execeptions.append(wav)
+        print("wav", wav)
+    print("\n\n\nexeceptions", len(execeptions), execeptions)
 
 
 if __name__ == "__main__":

@@ -15,7 +15,7 @@ import traceback
 class RNNStackedAttention(RNN):
 
     def __init__(self, input_shape, cell, return_sequences=False, return_state=False, go_backwards=False,
-                 stateful=False, unroll=False, audio_shape=(1582,), dim=0, **kwargs):
+                 stateful=False, unroll=False, dim=0, audio_shape=(1582,), **kwargs):
         super().__init__(cell, return_sequences, return_state, go_backwards, stateful, unroll, **kwargs)
         self.cell = StackedCellFeedback(cell, (input_shape[1], input_shape[2]), audio_shape=audio_shape, dim=dim)
         self.dim = dim
@@ -54,6 +54,8 @@ class RNNStackedAttention(RNN):
                 # print("CALL BUILD", "\n", input_shapes, "\n", input_shapes[0], "\ncall:")
                 if 0 < self.dim < 3:
                     input_shapes[0] = (None, 3, 3630)
+                elif self.dim == 5:
+                    input_shapes[0] = (None, 3, 3072)
                 self.build(unpack_singleton(input_shapes))
                 self.built = True
 

@@ -60,11 +60,6 @@ def get_feature_number(feature_name):
     return None
 
 
-def get_data_for_generator(base_path="/user/vlongobardi/temp_wav/Train"):
-    x = glob.glob(base_path + "/*/*.wav")
-    return x  # , [path.split("/")[-2] for path in x]
-
-
 class YamNetClassifier:
     def __init__(self, model_path=None, classes=["Angry", "Disgust", "Fear", "Happy", "Neutral", "Sad", "Surprise"],
                  base_path="/user/vlongobardi/IS09_emotion/"):
@@ -80,10 +75,10 @@ class YamNetClassifier:
         else:
             skips = 0
             iters = 1
-            bs = 16  # 128
-            ep = 50
-            opts = ["Adagrad", "Adam", "SGD"]
-            lrs = [0.01, 0.001]  # 0.003
+            bs = 64  # 128
+            ep = 100
+            opts = ["Adagrad", "Adam"]
+            lrs = [0.01] #, 0.001]  # 0.003
             models = [YAMNet]
             models_name = [x.__name__ for x in models]
             for index, model in enumerate(models):
@@ -147,10 +142,12 @@ class YamNetClassifier:
                 except:
                     print("\n\nEXCEPTION!")
                     traceback.print_exc()
+                    print("i", i, "len(list_feature_vectors)", len(list_feature_vectors))
+                    print(list_feature_vectors)
+                    print("ist_feature_vectors[i]:", list_feature_vectors[i])
                     print("signal shape:", librosa.load(list_feature_vectors[i], 48000)[0].shape)
                     signal, sound_sr = librosa.load(list_feature_vectors[i], 48000)
                     print(preprocess_input(signal, sound_sr).shape, "\n", len(signal))
-                    print("ist_feature_vectors[i]:", list_feature_vectors[i])
             c += batch_size
             if c + batch_size > len(list_feature_vectors):
                 c = 0
@@ -179,8 +176,8 @@ class YamNetClassifier:
         model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
         model.summary()
 
-        train_files = get_data_for_generator(path + "Train")
-        val_files = get_data_for_generator(path + "Val")
+        train_files = glob.glob(path + "Train/*/*.wav")
+        val_files = glob.glob(path + "Val/*/*.wav")
 
         train_gen = self.data_gen(train_files, batch_size)  # , aug=augment)
         val_gen = self.data_gen(val_files, batch_size)
@@ -197,7 +194,7 @@ class YamNetClassifier:
         cb = [ModelCheckpoint(filepath="audio_models/audioModel_{val_accuracy:.4f}_epoch{epoch:02d}" + model_name,
                               monitor="val_accuracy", save_best_only=True),
               TensorBoard(log_dir="FULL_AUDIO_LOG", write_graph=True, write_images=True)]
-        #cb += [LearningRateScheduler(custom_scheduler)]
+        cb += [LearningRateScheduler(custom_scheduler)]
         # EarlyStopping(monitor='val_accuracy', patience=10, mode='max')]
         history = model.fit_generator(train_gen, epochs=epochs, steps_per_epoch=(no_of_training_images // batch_size),
                                       validation_data=val_gen, validation_steps=(no_of_val_images // batch_size),
@@ -219,9 +216,9 @@ class YamNetClassifier:
         all_predictions = {}
         for c in self.classes:
             all_predictions[c] = 0
-        val_files = get_data_for_generator(path_clip , "*.wav")
+        val_files = glob.glob(path_clip + "*")
         val_gen = self.data_gen(val_files, 1, "eval")
-        for elem in val_gen:
+        for batch in val_gen:
             #ground_truth = self.lb.inverse_transform(batch[1])[0]
             pred = self.lb.inverse_transform(self.model.predict(batch[0]))[0]
             all_predictions[pred] += 1
@@ -231,7 +228,7 @@ class YamNetClassifier:
         predictions = []
         ground_truths = []
         stats = []
-        files = get_data_for_generator("/user/vlongobardi/late_feature/" + self.feature_name + "/Val")
+        files = glob.glob("/user/vlongobardi/late_feature/" + self.feature_name + "/Val/*/*.wav")
         val_gen = self.data_gen(files, 1, "eval")
         for batch in val_gen:
             ground_truth = self.lb.inverse_transform(batch[1])[0]
@@ -309,7 +306,7 @@ class YamNetClassifier:
 
 if __name__ == "__main__":
     audio_path = {"e1": "emobase2010_100", "e3": "emobase2010_300", "e6": "emobase2010_600", "es": "emobase2010_1000", "ef": "emobase2010_full"}
-    for e in ["es"]:
+    for e in ["ef"]:
         ap = "/user/vlongobardi/late_feature/" + audio_path[e] + "_wav/"
         print("######################## AUDIO PATH: ", ap)
         ync = YamNetClassifier(base_path=ap)
