@@ -126,10 +126,6 @@ class YamNetClassifier:
             for i in range(c, c + batch_size):
                 try:
                     signal, sound_sr = librosa.load(list_feature_vectors[i], 48000)
-                    #if len(signal) < 48000:
-                    #    print("len(signal), len(signal)/sound_sr")
-                    #    print(len(signal), len(signal)/sound_sr)
-                    #    print(list_feature_vectors[i])
                     if "full" in self.feature_name and len(signal) < 298368: #max_length
                         mul = np.tile(signal, 298368//len(signal))
                         add = signal[:298368%len(signal)]

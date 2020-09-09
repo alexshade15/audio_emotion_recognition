@@ -17,7 +17,8 @@ from keras_yamnet.yamnet import YAMNet
 basepath = "/user/vlongobardi/"
 
 
-def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight_decay=1e-5, weights='afew', dim=0, audio_shape=(1582,), yam_shape=None):
+def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight_decay=1e-5, weights='afew', dim=0,
+              audio_shape=(1582,), yam_shape=None):
     if dim < 2:
         cell_dim = 1024
     elif dim < 4:
@@ -67,13 +68,15 @@ def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight
     dense_c0 = Dense(cell_dim, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay))(features_mean_layer)
 
     if yam_shape is not None:
-        yn = YAMNet(weights='keras_yamnet/yamnet_conv.h5', classes=7, classifier_activation='softmax', input_shape=(yam_shape, 64))
+        yn = YAMNet(weights='keras_yamnet/yamnet_conv.h5', classes=7, classifier_activation='softmax',
+                    input_shape=(yam_shape, 64))
         yamnet = Model(input=yn.input, output=yn.layers[-3].output)
         yamnet_out = yamnet.output
     else:
         yamnet_out = None
 
-    Rnn_attention = RNNStackedAttention(reshape_dim, cells, return_sequences=True, unroll=True, dim=dim, audio_shape=audio_shape, yamnet_out=yamnet_out)
+    Rnn_attention = RNNStackedAttention(reshape_dim, cells, return_sequences=True, unroll=True, dim=dim,
+                                        audio_shape=audio_shape, yamnet_out=yamnet_out)
     x = Rnn_attention(x, initial_state=[dense_h0, dense_c0])
     x = TimeDistributed(
         Dense(100, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay), name='ff_logit_lstm'))(x)
