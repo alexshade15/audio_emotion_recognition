@@ -402,9 +402,12 @@ class VideoClassifier:
                     start = random.randint(0, len(video_info) - self.time_step)
                     for index, elem in enumerate(video_info[start:self.time_step + start]):
                         ground_truth, _, audio_path = elem
-                        audio_path = audio_path.replace(self.feature_name,
-                                                        "temp_clips_" + self.feature_name.split("_")[1])
+
+                        path1 = self.feature_name.replace("wav", "yam")
+                        path2 = "temp_clips_" + self.feature_name.split("_")[1]
+                        audio_path = audio_path.replace(path1, path2)
                         audio_path = audio_path.replace("npy", "wav")
+
                         signal, sound_sr = librosa.load(audio_path, 48000)
                         if "full" in self.feature_name and len(signal) < 298368:  # max_length
                             mul = np.tile(signal, 298368 // len(signal))
@@ -449,9 +452,12 @@ class VideoClassifier:
                                         np.zeros((batch_size, self.time_step, 224, 224, 3)).astype('float')]
 
                         for index, elem in enumerate(video_info[start:self.time_step + start]):
-                            audio_path = elem[2].replace(self.feature_name,
-                                                         "temp_clips_" + self.feature_name.split("_")[1])
+
+                            path1 = self.feature_name.replace("wav", "yam")
+                            path2 = "temp_clips_" + self.feature_name.split("_")[1]
+                            audio_path = elem[2].replace(path1, path2)
                             audio_path = audio_path.replace("npy", "wav")
+
                             signal, sound_sr = librosa.load(audio_path, 48000)
                             if "full" in self.feature_name and len(signal) < 298368:  # max_length
                                 mul = np.tile(signal, 298368 // len(signal))
@@ -489,9 +495,12 @@ class VideoClassifier:
                         np.zeros((1, self.time_step, 224, 224, 3)).astype('float')]
             images = DataGen(csv_path, '', 1, 31, NoAug(), 16, 1, 12, test=True)[0][0][0]
             for index, elem in enumerate(list_files[start:start + self.time_step]):
-                audio_path = elem[2].replace(self.feature_name,
-                                             "temp_clips_" + self.feature_name.split("_")[1])
+
+                path1 = self.feature_name.replace("wav", "yam")
+                path2 = "temp_clips_" + self.feature_name.split("_")[1]
+                audio_path = audio_path.replace(path1, path2)
                 audio_path = audio_path.replace("npy", "wav")
+
                 signal, sound_sr = librosa.load(audio_path, 48000)
                 if "full" in self.feature_name and len(signal) < 298368:  # max_length
                     mul = np.tile(signal, 298368 // len(signal))
@@ -584,7 +593,7 @@ class VideoClassifier:
 
                 if self.vc.train_mode == "joint":
                     csv_fusion = self.vc.load_early_csv("val")
-                    gen = self.vc.joint_gen(csv_fusion, 16, "eval", 1)
+                    gen = self.vc.joint_val_gen(csv_fusion, 16, "eval", 1)
                     va = self.model.evaluate_generator(gen, self.dim, workers=0)
                     print("Evaluate:", va)
                     self.val_accs.append(va)
