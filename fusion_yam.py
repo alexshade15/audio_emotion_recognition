@@ -128,8 +128,8 @@ class VideoClassifier:
                             t_files, v_files = self.csv_fusion["train"], self.csv_fusion["val"]
                             m = model((self.time_step, 224, 224, 3), dim=self.model_type, audio_shape=(1024,))
                         else:
-                            train_infos["generator1"] = self.joint_gen
-                            train_infos["generator2"] = self.joint_gen
+                            train_infos["generator1"] = self.joint_gen_train
+                            train_infos["generator2"] = self.joint_val_gen
                             t_files, v_files = self.csv_fusion["train"], self.csv_fusion["val"]
                             m = model((self.time_step, 224, 224, 3), dim=self.model_type, audio_shape=(1024,),
                                       yam_shape=self.audio_feature)
