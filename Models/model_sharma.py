@@ -5,6 +5,8 @@ from keras.layers import TimeDistributed, LSTMCell, Reshape, Dense, Lambda, Drop
 from Models.RNN_stacked_attention import RNNStackedAttention
 from Models.seresnet50 import SEResNet50
 
+from keras_yamnet.yamnet import YAMNet
+
 #
 # Original implementation:
 # https://github.com/kracwarlock/action-recognition-visual-attention/blob/6738a0e2240df45ba79e87d24a174f53adb4f29b/src/actrec.py#L111
@@ -15,7 +17,7 @@ from Models.seresnet50 import SEResNet50
 basepath = "/user/vlongobardi/"
 
 
-def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight_decay=1e-5, weights='afew', dim=0, audio_shape=(1582,)):
+def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight_decay=1e-5, weights='afew', dim=0, audio_shape=(1582,), yam_shape=None):
     if dim < 2:
         cell_dim = 1024
     elif dim < 4:
@@ -64,7 +66,14 @@ def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight
     dense_h0 = Dense(cell_dim, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay))(features_mean_layer)
     dense_c0 = Dense(cell_dim, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay))(features_mean_layer)
 
-    Rnn_attention = RNNStackedAttention(reshape_dim, cells, return_sequences=True, unroll=True, dim=dim, audio_shape=audio_shape)
+    if yam_shape is not None:
+        yn = YAMNet(weights='keras_yamnet/yamnet_conv.h5', classes=7, classifier_activation='softmax', input_shape=(yam_shape, 64))
+        yamnet = Model(input=yn.input, output=yn.layers[-3].output)
+        yamnet_out = yamnet.output
+    else:
+        yamnet_out = None
+
+    Rnn_attention = RNNStackedAttention(reshape_dim, cells, return_sequences=True, unroll=True, dim=dim, audio_shape=audio_shape, yamnet_out=yamnet_out)
     x = Rnn_attention(x, initial_state=[dense_h0, dense_c0])
     x = TimeDistributed(
         Dense(100, activation='tanh', kernel_regularizer=regularizers.l2(weight_decay), name='ff_logit_lstm'))(x)
@@ -86,6 +95,8 @@ def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight
         input_tensors.append(input_layer)
     else:
         input_tensors = input_layer
+    if yam_shape is not None:
+        input_tensors = [yamnet.input, input_layer]
     model = Model(input_tensors, x)
     model.layers[1].trainable = train_all_baseline
 

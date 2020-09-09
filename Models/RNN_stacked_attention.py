@@ -15,9 +15,9 @@ import traceback
 class RNNStackedAttention(RNN):
 
     def __init__(self, input_shape, cell, return_sequences=False, return_state=False, go_backwards=False,
-                 stateful=False, unroll=False, dim=0, audio_shape=(1582,), **kwargs):
+                 stateful=False, unroll=False, dim=0, audio_shape=(1582,), yamnet_out=None, **kwargs):
         super().__init__(cell, return_sequences, return_state, go_backwards, stateful, unroll, **kwargs)
-        self.cell = StackedCellFeedback(cell, (input_shape[1], input_shape[2]), audio_shape=audio_shape, dim=dim)
+        self.cell = StackedCellFeedback(cell, (input_shape[1], input_shape[2]), audio_shape=audio_shape, dim=dim, yamnet_out=yamnet_out)
         self.dim = dim
         self.shape_lstm = (None, input_shape[0], input_shape[2])
 

@@ -17,7 +17,7 @@ def x_calculation(tensors):
 
 class StackedCellFeedback(StackedRNNCells):
 
-    def __init__(self, cells, feature_shape, weight_decay=1e-5, audio_shape=(1582,), dim=0, **kwargs):
+    def __init__(self, cells, feature_shape, weight_decay=1e-5, audio_shape=(1582,), dim=0, yamnet_out=None, **kwargs):
         super().__init__(cells, **kwargs)
         self.attention_maps = []
         self.attention_layers = [
@@ -30,6 +30,7 @@ class StackedCellFeedback(StackedRNNCells):
         self.audio_shape = audio_shape
         self.audio_tensors = []
         self.dim = dim
+        self.yamnet_out = yamnet_out
 
     def attention_model(self, inputs):
         # print("\n\n\n\nCALL attention_model")
@@ -83,8 +84,11 @@ class StackedCellFeedback(StackedRNNCells):
             if counter_cells == 0:
                 inputs = x_calculation([inputs, self.current_map])
                 if self.dim >= 0:
-                    audio_input = Input(shape=self.audio_shape)
-                    self.audio_tensors.append(audio_input)
+                    if self.yamnet_out is not None:
+                        audio_input = self.yamnet_out
+                    else:
+                        audio_input = Input(shape=self.audio_shape)
+                        self.audio_tensors.append(audio_input)
                     inputs = Concatenate(name='fusion1')([inputs, audio_input])
                     if self.dim == 0 or self.dim == 3:
                         inputs = Dense(2048, activation='relu', name='fusion2')(inputs)
