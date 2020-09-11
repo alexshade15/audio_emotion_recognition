@@ -1,9 +1,9 @@
 import tensorflow as tf
-from keras import Input, Model, regularizers
+from keras import regularizers  # , Input, Model,
 from keras.utils.generic_utils import has_arg
-from keras.layers import StackedRNNCells, Dense, Concatenate
+from keras.layers import StackedRNNCells, Dense  # , Concatenate
 
-from keras_yamnet.yamnet import YAMNet
+# from keras_yamnet.yamnet import YAMNet
 
 
 def x_calculation(tensors):
@@ -17,20 +17,20 @@ def x_calculation(tensors):
 
 class StackedCellFeedback(StackedRNNCells):
 
-    def __init__(self, cells, feature_shape, weight_decay=1e-5, audio_shape=(1582,), dim=0, yam_shape=None, **kwargs):
+    def __init__(self, cells, feature_shape, weight_decay=1e-5, **kwargs):
+        # audio_shape=(1582,), dim=0, yam_shape=None, **kwargs):
         super().__init__(cells, **kwargs)
         self.attention_maps = []
         self.attention_layers = [
             Dense(feature_shape[1], activation='relu', kernel_regularizer=regularizers.l2(weight_decay)),
             Dense(feature_shape[0], activation='softmax', kernel_regularizer=regularizers.l2(weight_decay))]
         self.current_map = None
-        self.feature_shape = feature_shape
         self.attention_maps = []
         self.time = 0
-        self.audio_shape = audio_shape
-        self.audio_tensors = []
-        self.dim = dim
-        self.yam_shape = yam_shape
+        # self.audio_shape = audio_shape
+        # self.audio_tensors = []
+        # self.dim = dim
+        # self.yam_shape = yam_shape
 
     def attention_model(self, inputs):
         out = self.attention_layers[0](inputs)
@@ -62,25 +62,22 @@ class StackedCellFeedback(StackedRNNCells):
         for cell, states in zip(self.cells, nested_states):
             if counter_cells == 0:
                 inputs = x_calculation([inputs, self.current_map])
-                if self.dim >= 0:
-                    if self.yam_shape is not None:
-
-                        yn = YAMNet(weights='keras_yamnet/yamnet_conv.h5', classes=7, classifier_activation='softmax',
-                                    input_shape=(self.yam_shape, 64))
-                        yamnet = Model(input=yn.input, output=yn.layers[-3].output)
-                        self.audio_tensors.append(yamnet.input)
-                        audio_input = yamnet.output
-                    else:
-                        audio_input = Input(shape=self.audio_shape)
-                        self.audio_tensors.append(audio_input)
-                    inputs = Concatenate(name='fusion1')([inputs, audio_input])
-                    if self.dim == 0 or self.dim == 3:
-                        inputs = Dense(2048, activation='relu', name='fusion2')(inputs)
+                # if self.dim >= 0:
+                #     if self.yam_shape is not None:
+                #
+                #         yn = YAMNet(weights='keras_yamnet/yamnet_conv.h5', classes=7, classifier_activation='softmax',
+                #                     input_shape=(self.yam_shape, 64))
+                #         yamnet = Model(input=yn.input, output=yn.layers[-3].output)
+                #         self.audio_tensors.append(yamnet.input)
+                #         audio_input = yamnet.output
+                #     else:
+                #         audio_input = Input(shape=self.audio_shape)
+                #         self.audio_tensors.append(audio_input)
+                #     inputs = Concatenate(name='fusion1')([inputs, audio_input])
+                #     if self.dim == 0 or self.dim == 3:
+                #         inputs = Dense(2048, activation='relu', name='fusion2')(inputs)
             if has_arg(cell.call, 'constants'):
-                inputs, states = cell.call(inputs, states,
-                                           constants=constants,
-                                           **kwargs)
-
+                inputs, states = cell.call(inputs, states, constants=constants, **kwargs)
             else:
                 inputs, states = cell.call(inputs, states, **kwargs)
             new_nested_states.append(states)

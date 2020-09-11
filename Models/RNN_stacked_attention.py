@@ -12,11 +12,12 @@ from Models.StackedCellFeedback import StackedCellFeedback
 class RNNStackedAttention(RNN):
 
     def __init__(self, input_shape, cell, return_sequences=False, return_state=False, go_backwards=False,
-                 stateful=False, unroll=False, dim=0, audio_shape=(1582,), yam_shape=None, **kwargs):
+                 stateful=False, unroll=False, **kwargs):
+        # , dim=0, audio_shape=(1582,), yam_shape=None
         super().__init__(cell, return_sequences, return_state, go_backwards, stateful, unroll, **kwargs)
-        self.cell = StackedCellFeedback(cell, (input_shape[1], input_shape[2]), audio_shape=audio_shape, dim=dim,
-                                        yam_shape=yam_shape)
-        self.dim = dim
+        self.cell = StackedCellFeedback(cell, (input_shape[1], input_shape[2]))
+        # , audio_shape=audio_shape, dim=dim, yam_shape=yam_shape)
+        # self.dim = dim
         self.shape_lstm = (None, input_shape[0], input_shape[2])
 
     def get_audio_tensors(self):
@@ -45,10 +46,10 @@ class RNNStackedAttention(RNN):
                             'This layer has no information about its expected input shape, and thus cannot be built.' +
                             'You can build it manually via: `layer.build(batch_input_shape)`')
 
-                if 0 < self.dim < 3:
-                    input_shapes[0] = (None, 3, 3630)
-                elif self.dim == 5:
-                    input_shapes[0] = (None, 3, 3072)
+                # if 0 < self.dim < 3:
+                #     input_shapes[0] = (None, 3, 3630)
+                # elif self.dim == 5:
+                #     input_shapes[0] = (None, 3, 3072)
                 self.build(unpack_singleton(input_shapes))
                 self.built = True
 
