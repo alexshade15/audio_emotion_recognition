@@ -521,10 +521,10 @@ if __name__ == "__main__":
         for mp in model_path:
             vc = VideoClassifier(train_mode="late_fusion", audio_model_path=mp)
     elif sys.argv[1] == "early":
-        mt = int(sys.argv[2])
-        print("EARLY, Model_type:", mt)
+        # mt = int(sys.argv[2])
+        print("EARLY")  # , Model_type:", mt)
         arff_paths = {"e1": "emobase2010_100", "i1": "IS09_emotion_100",
                       "e3": "emobase2010_300", "i3": "IS09_emotion_300",
                       "e6": "emobase2010_600", "i6": "IS09_emotion_600",
                       "ef": "emobase2010_full", "if": "IS09_emotion_full"}
-        vc = VideoClassifier(train_mode="early_fusion", feature_name=arff_paths[sys.argv[3]])  # , model_type=mt)
+        vc = VideoClassifier(train_mode="early_fusion", feature_name=arff_paths[sys.argv[2]])  # , model_type=mt)
