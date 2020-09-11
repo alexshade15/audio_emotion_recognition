@@ -75,7 +75,7 @@ def SharmaNet(input_shape, train_all_baseline=False, classification=True, weight
     ########################################
 
     if "early" in train_mode:
-        audio_input = Input(shape=(16, audio_dim))
+        audio_input = Input(shape=(input_shape[0], audio_dim))
         x = Concatenate(name='fusion1')([x, audio_input])
     # elif "joint" in train_mode:
     #
