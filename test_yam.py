@@ -50,7 +50,6 @@ class RandomAudioGenerator(Sequence):
     def __getitem__(self, index):
 
         self.num_batch += 1
-        #print("OK, THIS IS CALL #", self.num_batch)
 
         X_batch = []
         y_batch = []
@@ -62,7 +61,7 @@ class RandomAudioGenerator(Sequence):
 
                 # select random frame from the selected file
                 if self.X[file_idx].shape[0] < self.win_samples:
-                    #continue
+                    # continue
                     print("\nRandom self.X[file_idx].shape[0] - self.win_samples:")
                     print("Random:", (self.X[file_idx].shape[0], "-", self.win_samples))
 
@@ -112,8 +111,8 @@ class SequentialAudioGenerator(Sequence):
             data, sound_sr = librosa.load(file_path, self.sr)
             data = data if self.transform is None else self.transform(data, sound_sr)
 
-            #print("0, data.shape[0] - self.win_samples, self.hop_samples")
-            #print(0, data.shape[0], self.win_samples, self.hop_samples)
+            # print("0, data.shape[0] - self.win_samples, self.hop_samples")
+            # print(0, data.shape[0], self.win_samples, self.hop_samples)
             for start in range(0, data.shape[0] - self.win_samples, self.hop_samples):
                 self.X.append(data[start:start + self.win_samples])
 
@@ -202,18 +201,19 @@ if __name__ == "__main__":
     val_gen = SequentialAudioGenerator(X_val, y_val, batch_size=2, sr=sr, win_sec=win_sec, hop_sec=hop_sec,
                                        transform=transform)
 
-    i=0
+    i = 0
     for elem in train_gen:
-        i+=1
+        i += 1
     print("Number of generation", i)
 
-    model = YAMNet(weights='keras_yamnet/yamnet_conv.h5', input_shape=(58, 64), classes=7, classifier_activation='softmax')
+    model = YAMNet(weights='keras_yamnet/yamnet_conv.h5', input_shape=(58, 64), classes=7,
+                   classifier_activation='softmax')
     model.compile(loss='categorical_crossentropy', optimizer=Adagrad(lr=0.003, decay=1e-6), metrics=['accuracy'])
-    #model.summary()
-    #callbacks = [EarlyStopping(monitor='val_accuracy', patience=20, mode='max', restore_best_weights=True)]
+    # model.summary()
+    # callbacks = [EarlyStopping(monitor='val_accuracy', patience=20, mode='max', restore_best_weights=True)]
 
-    h = model.fit_generator(train_gen, steps_per_epoch=batches_per_epoch, epochs=10, #callbacks=callbacks,
-                        validation_data=val_gen, shuffle=False, validation_steps=batches_per_epoch, verbose=1)
+    h = model.fit_generator(train_gen, steps_per_epoch=batches_per_epoch, epochs=10,  # callbacks=callbacks,
+                            validation_data=val_gen, shuffle=False, validation_steps=batches_per_epoch, verbose=1)
 
     print("\n\nTrain_Accuracy =", h.history['accuracy'])
     print("\nVal_Accuracy =", h.history['val_accuracy'])
