@@ -1,39 +1,47 @@
+from keras.layers import RNN, Reshape, Input
+import tensorflow as tf
+from keras import regularizers
 import keras.backend as K
-
-from keras.layers import RNN, Reshape
-from keras.engine import InputSpec
-from keras.layers.recurrent import _standardize_args
-from keras.engine.base_layer import _collect_input_shape
 from keras.utils.generic_utils import to_list, unpack_singleton, has_arg
-
+from keras.engine import InputSpec
+from keras.engine.base_layer import _collect_input_shape
 from Models.StackedCellFeedback import StackedCellFeedback
+from keras.layers.recurrent import _standardize_args
+from keras.utils.generic_utils import to_list, unpack_singleton, has_arg
 
 
 class RNNStackedAttention(RNN):
 
-    def __init__(self, input_shape, cell, return_sequences=False, return_state=False, go_backwards=False,
-                 stateful=False, unroll=False, **kwargs):
-        # , dim=0, audio_shape=(1582,), yam_shape=None
-        super().__init__(cell, return_sequences, return_state, go_backwards, stateful, unroll, **kwargs)
-        self.cell = StackedCellFeedback(cell, (input_shape[1], input_shape[2]))
-        # , audio_shape=audio_shape, dim=dim, yam_shape=yam_shape)
-        # self.dim = dim
-        self.shape_lstm = (None, input_shape[0], input_shape[2])
+    def __init__(self, input_shape, cell,
+                 return_sequences=False,
+                 return_state=False,
+                 go_backwards=False,
+                 stateful=False,
+                 unroll=False,
+                 **kwargs):
+        self.shape_lstm = (None,input_shape[0],input_shape[2])
+        super(RNNStackedAttention, self).__init__(cell,
+                                   return_sequences=return_sequences,
+                                   return_state=return_state,
+                                   go_backwards=go_backwards,
+                                   stateful=stateful,
+                                   unroll=unroll,
+                                   **kwargs)
+        self.cell = StackedCellFeedback(cell,(input_shape[1],input_shape[2]))
 
-    def get_audio_tensors(self):
-        return self.cell.audio_tensors
-
-    def _sup_rnn_call(self, inputs, **kwargs):
+    def _sup_rnn_call(self, inputs, initial_state=None, constants=None, **kwargs):
+        # reshaped_input = Reshape((inputs._shape[1],inputs._keras_shape[2]*inputs._keras_shape[3]))(inputs)
+        # super(RNNStackedAttention,self).__call__(reshaped_input,**kwargs)
         if isinstance(inputs, list):
             inputs = inputs[:]
         with K.name_scope(self.name):
             # Handle laying building (weight creating, input spec locking).
-            # print("built", self.built, self.shape_lstm)
             if not self.built:
-                input_shapes = [self.shape_lstm]
+                input_shapes = []
+                input_shapes.append(self.shape_lstm)
 
                 # Collect input shapes to build layer.
-                # input_shapes.append(self.shape_lstm)
+                #input_shapes.append(self.shape_lstm)
 
                 for x_elem in to_list(inputs):
                     if hasattr(x_elem, '_keras_shape'):
@@ -41,15 +49,14 @@ class RNNStackedAttention(RNN):
                     elif hasattr(K, 'int_shape'):
                         input_shapes.append(K.int_shape(x_elem))
                     else:
-                        raise ValueError(
-                            'You tried to call layer "' + self.name + '".\n' +
-                            'This layer has no information about its expected input shape, and thus cannot be built.' +
-                            'You can build it manually via: `layer.build(batch_input_shape)`')
+                        raise ValueError('You tried to call layer "' +
+                                         self.name +
+                                         '". This layer has no information'
+                                         ' about its expected input shape, '
+                                         'and thus cannot be built. '
+                                         'You can build it manually via: '
+                                         '`layer.build(batch_input_shape)`')
 
-                # if 0 < self.dim < 3:
-                #     input_shapes[0] = (None, 3, 3630)
-                # elif self.dim == 5:
-                #     input_shapes[0] = (None, 3, 3072)
                 self.build(unpack_singleton(input_shapes))
                 self.built = True
 
@@ -59,12 +66,26 @@ class RNNStackedAttention(RNN):
 
             # Raise exceptions in case the input is not compatible
             # with the input_spec set at build time.
+            # self.assert_input_compatibility(inputs)
+
             # Handle mask propagation.
+            # previous_mask = _collect_previous_mask(inputs)
             user_kwargs = kwargs.copy()
+            # if not is_all_none(previous_mask):
+            #     # The previous layer generated a mask.
+            #     if has_arg(self.call, 'mask'):
+            #         if 'mask' not in kwargs:
+            #             # If mask is explicitly passed to __call__,
+            #             # we should override the default mask.
+            #             kwargs['mask'] = previous_mask
+            # # Handle automatic shape inference (only useful for Theano).
+            # input_shape = _collect_input_shape(inputs)
 
             # Actually call the layer,
             # collecting output(s), mask(s), and shape(s).
             output = self.call(inputs, **kwargs)
+            # output_mask = self.compute_mask(inputs, previous_mask)
+
             # If the layer returns tensors from its inputs, unmodified,
             # we copy them to avoid loss of tensor metadata.
             output_ls = to_list(output)
@@ -110,7 +131,6 @@ class RNNStackedAttention(RNN):
                                    arguments=user_kwargs)
 
             # Apply activity regularizer if any:
-            # self has no activity_regularizer
             if (hasattr(self, 'activity_regularizer') and
                     self.activity_regularizer is not None):
                 with K.name_scope('activity_regularizer'):
@@ -120,6 +140,10 @@ class RNNStackedAttention(RNN):
                 self.add_loss(regularization_losses,
                               inputs=to_list(inputs))
         return output
+
+
+
+
 
     def __call__(self, inputs, initial_state=None, constants=None, **kwargs):
         inputs, initial_state, constants = _standardize_args(
@@ -175,17 +199,27 @@ class RNNStackedAttention(RNN):
         else:
             return self._sup_rnn_call(inputs, **kwargs)
 
-    def get_initial_state(self, inputs):
-        initial_state = K.ones_like(inputs)
-        initial_state = K.sum(initial_state, axis=(1, 2))
-        initial_state = K.expand_dims(initial_state)
-        if hasattr(self.cell.state_size, '__len__'):
-            return [K.tile(initial_state, [1, dim])
-                    for dim in self.cell.state_size]
-        else:
-            return [K.tile(initial_state, [1, self.cell.state_size])]
 
-    def call(self, inputs, mask=None, training=None, initial_state=None, constants=None):
+
+
+
+    def get_initial_state(self, inputs):
+      # build an all-zero tensor of shape (samples, output_dim)
+      initial_state = K.ones_like(inputs)  # (samples, timesteps, input_dim)
+      initial_state = K.sum(initial_state, axis=(1, 2))  # (samples,)
+      initial_state = K.expand_dims(initial_state)  # (samples, 1)
+      if hasattr(self.cell.state_size, '__len__'):
+          return [K.tile(initial_state, [1, dim])
+                  for dim in self.cell.state_size]
+      else:
+          return [K.tile(initial_state, [1, self.cell.state_size])]
+          
+    def call(self,
+             inputs,
+             mask=None,
+             training=None,
+             initial_state=None,
+             constants=None):
         if not isinstance(initial_state, (list, tuple, type(None))):
             initial_state = [initial_state]
         if not isinstance(constants, (list, tuple, type(None))):
@@ -199,7 +233,6 @@ class RNNStackedAttention(RNN):
             else:
                 # get initial_state from full input spec
                 # as they could be copied to multiple GPU.
-                # print("self._num_constants:", self._num_constants)
                 if self._num_constants is None:
                     if initial_state is not None:
                         raise ValueError('Layer was passed initial state ' +
@@ -223,11 +256,12 @@ class RNNStackedAttention(RNN):
         elif self.stateful:
             initial_state = self.states
         else:
-            reshape = Reshape((inputs._keras_shape[1], inputs._keras_shape[2] * inputs._keras_shape[3]))(inputs)
+            reshape = Reshape((inputs._keras_shape[1],inputs._keras_shape[2]*inputs._keras_shape[3]))(inputs)
             initial_state = self.get_initial_state(reshape)
 
         if isinstance(mask, list):
             mask = mask[0]
+
         if len(initial_state) != len(self.states):
             raise ValueError('Layer has ' + str(len(self.states)) +
                              ' states but was passed ' +
@@ -264,16 +298,22 @@ class RNNStackedAttention(RNN):
                                       **kwargs)
         else:
             def step(inputs, states):
-                temp = self.cell.call(inputs, states, **kwargs)
-                return temp
+                return self.cell.call(inputs, states, **kwargs)
 
-        last_output, outputs, states = K.rnn(step, inputs, initial_state, constants=constants, unroll=self.unroll,
-                                             go_backwards=self.go_backwards, mask=mask, input_length=timesteps)
+        last_output, outputs, states = K.rnn(step,
+                                             inputs,
+                                             initial_state,
+                                             constants=constants,
+                                             go_backwards=self.go_backwards,
+                                             mask=mask,
+                                             unroll=self.unroll,
+                                             input_length=timesteps)
         if self.stateful:
             updates = []
             for i in range(len(states)):
                 updates.append((self.states[i], states[i]))
             self.add_update(updates, inputs)
+
         if self.return_sequences:
             output = outputs
         else:
@@ -284,6 +324,7 @@ class RNNStackedAttention(RNN):
             output._uses_learning_phase = True
             for state in states:
                 state._uses_learning_phase = True
+
         if self.return_state:
             states = to_list(states, allow_tuple=True)
             return [output] + states

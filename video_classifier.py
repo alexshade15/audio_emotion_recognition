@@ -123,7 +123,8 @@ class VideoClassifier:
                                 layer.trainable = False
                             # , dim=self.model_type)
 
-                        self.model = self.train(t_files, v_files, train_infos, m)
+                        # self.model =
+                        self.train(t_files, v_files, train_infos, m)
 
     def generate_feature(self, t_files, v_files):
         if self.train_mode == "late_fusion":
@@ -402,44 +403,47 @@ class VideoClassifier:
             return 0.1 / 10 ** (floor(epoch / 25) + 1)
 
         class CheckValCMCallback(keras.callbacks.Callback):
-            def __init__(self, m, dim, validation_files):
+            def __init__(self, m, dim, validation_files, epoch):
                 super().__init__()
                 self.vc = m
                 self.dim = dim
                 self.val_files = validation_files
+                self.epoch = epoch
+                self.accs = []
 
             def on_epoch_end(self, epoch, logs=None):
                 if self.vc.train_mode == "early_fusion":
                     csv_fusion = self.vc._load_early_csv("val")
-                    gen = self.vc.early_gen_new_val(csv_fusion, 16, "eval", 1)
-
-                    predictions = []
-                    ground_truths = []
-                    for x in gen:
-                        ground_truths.append(self.vc.lb.inverse_transform(x[1])[0])
-                        pred = self.model.predict(x[0])
-                        pred = self.vc.lb.inverse_transform(pred)
-                        predictions.append(pred[0])
-                        self.vc.print_stats(ground_truths, predictions, "Video" + str(epoch))
-
-                    gen = self.vc.early_gen_new_val(csv_fusion, 16, "eval", 1)
-
+                    # gen = self.vc.early_gen_new_val(csv_fusion, 16, "eval")
+                    #
+                    # predictions = []
+                    # ground_truths = []
+                    # for x in gen:
+                    #     ground_truths.append(self.vc.lb.inverse_transform(x[1])[0])
+                    #     pred = self.model.predict(x[0])
+                    #     pred = self.vc.lb.inverse_transform(pred)
+                    #     predictions.append(pred[0])
+                    #     self.vc.print_stats(ground_truths, predictions, "Video" + str(epoch))
+                    gen = self.vc.early_gen_new_val(csv_fusion, 16, "eval")
                 else:
-                    gen = self.vc.late_gen(self.val_files, 16)
-                print("Evaluate:", self.model.evaluate_generator(gen, self.dim, workers=0))
+                    gen = self.vc.late_gen(self.val_files, 16, "eval")
+                acc = self.model.evaluate_generator(gen, self.dim, workers=0)
+                self.accs.append(acc)
+                print("Evaluate:", acc)
 
         cb = [ModelCheckpoint(
             filepath=str(
-                "ultimate_early_weights/videoModel__t{accuracy:.4f}_epoch{epoch:02d}" + model_name),
+                "weights_new_fusion/videoModel__t{accuracy:.4f}_epoch{epoch:02d}" + model_name),
             monitor="val_accuracy", save_weights_only=True),
-            TensorBoard(log_dir="Ultimate_logs_" + self.train_mode, write_graph=True, write_images=True)]
+            TensorBoard(log_dir="NewFusionLogs/" + self.train_mode + "/" + self.feature_name, write_graph=True,
+                        write_images=True)]
         if self.train_mode == "early_fusion":
             cb += [LearningRateScheduler(custom_scheduler)]
-        cb += [CheckValCMCallback(self, no_of_val_images, val_files)]
+        cb += [CheckValCMCallback(self, no_of_val_images, val_files, train_data["epoch"])]
         history = model.fit_generator(train_gen,
                                       # validation_data=val_gen,
                                       epochs=train_data["epoch"],
-                                      steps_per_epoch=(no_of_training_images // train_data["batch_size"]),
+                                      steps_per_epoch=(no_of_training_images * 2 // train_data["batch_size"]),
                                       # validation_steps=(no_of_val_images // train_data["batch_size"]),
                                       workers=0, verbose=1, callbacks=cb)
         print("\n\nTrain_Accuracy =", history.history['accuracy'])
@@ -447,14 +451,14 @@ class VideoClassifier:
         print("\n\nTrain_Loss =", history.history['loss'])
         # print("\nVal_Loss =", history.history['val_loss'])
 
-        model_name = "videoModel_" + "_epoch" + str(train_data["epoch"]) + model_name
+        # model_name = "videoModel_" + "_epoch" + str(train_data["epoch"]) + model_name
 
-        print("\n\nModels saved as:", model_name)
+        # print("\n\nModels saved as:", model_name)
         # print("Train:", history.history['accuracy'][-1], "Val:", history.history['val_accuracy'][-1])
         # model.save("video_models/" + model_name)
-        model.save_weights("video_models_early_weights/" + model_name)
+        # model.save_weights("video_models_early_weights/" + model_name)
 
-        return model
+        # return model
 
     def print_stats(self, ground_truths, predictions, name):
         cm = confusion_matrix(ground_truths, predictions, self.classes)
