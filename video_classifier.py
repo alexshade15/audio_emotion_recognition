@@ -431,6 +431,9 @@ class VideoClassifier:
                 self.accs.append(acc)
                 print("Evaluate:", acc)
 
+                if self.epoch == epoch+1:
+                    print("Validation_Accuracy =", self.accs)
+
         cb = [ModelCheckpoint(
             filepath=str(
                 "weights_new_fusion/videoModel__t{accuracy:.4f}_epoch{epoch:02d}" + model_name),
