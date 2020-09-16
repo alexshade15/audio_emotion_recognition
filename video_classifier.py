@@ -36,11 +36,11 @@ def get_feature_number(feature_name):
 class VideoClassifier:
 
     def __init__(self, train_mode="late_fusion", video_model_path=None, audio_model_path="", time_step=16,
-                 base_path="/user/vlongobardi/AFEW/aligned/", feature_name="emobase2010_300", stride=1):
+                 base_path="/user/vlongobardi/AFEW/aligned/", feature_name="emobase2010_100", stride=1):
         # model_type=0,
+        # self.model_type = model_type
         self.time_step = time_step
         self.train_mode = train_mode
-        # self.model_type = model_type
         self.feature_name = feature_name
         self.classes = classes
         self.lb = LabelBinarizer()
@@ -133,7 +133,7 @@ class VideoClassifier:
                 csv_late_fusion = self._generate_data_for_late_fusion(t_files + v_files)
                 print("\n##### CSV GENERATED! #####")
             else:
-                csv_late_fusion = self._load_late_csv()
+                csv_late_fusion = self.load_late_csv()
             return csv_late_fusion
         elif self.train_mode == "early_fusion":
             if not exists('features_path_early_fusion_train_' + self.feature_name + '.csv'):
@@ -146,10 +146,10 @@ class VideoClassifier:
             else:
                 csv_early_fusion = {}
                 for name in ["train", "val"]:
-                    csv_early_fusion[name] = self._load_early_csv(name)
+                    csv_early_fusion[name] = self.load_early_csv(name)
             return csv_early_fusion
 
-    def _load_late_csv(self):
+    def load_late_csv(self):
         csv_late_fusion = {}
         print('Opening csv: lables_late_fusion' + self.feature_name + '.csv')
         with open('lables_late_fusion' + self.feature_name + '.csv', 'r') as f:
@@ -159,7 +159,7 @@ class VideoClassifier:
                 csv_late_fusion[clip_id] = [ground_truth, frame_label, audio_label]
         return csv_late_fusion
 
-    def _load_early_csv(self, dataset):
+    def load_early_csv(self, dataset):
         csv_early_fusion = {}
         print("Opening csv: features_path_early_fusion_" + dataset + "_" + self.feature_name + '.csv')
         with open('features_path_early_fusion_' + dataset + "_" + self.feature_name + '.csv', 'r') as f:
@@ -377,7 +377,6 @@ class VideoClassifier:
         model.summary()
 
         train_gen = train_data["generator1"](train_files, train_data["batch_size"])
-        # val_gen = train_data["generator2"](val_files, train_data["batch_size"]) #, stride)
         no_of_training_images = len(train_files)
 
         if self.train_mode == "early_fusion":
@@ -413,9 +412,8 @@ class VideoClassifier:
 
             def on_epoch_end(self, epoch, logs=None):
                 if self.vc.train_mode == "early_fusion":
-                    csv_fusion = self.vc._load_early_csv("val")
+                    csv_fusion = self.vc.load_early_csv("val")
                     # gen = self.vc.early_gen_new_val(csv_fusion, 16, "eval")
-                    #
                     # predictions = []
                     # ground_truths = []
                     # for x in gen:
@@ -431,7 +429,7 @@ class VideoClassifier:
                 self.accs.append(acc)
                 print("Evaluate:", acc)
 
-                if self.epoch == epoch+1:
+                if self.epoch == epoch + 1:
                     print("Validation_Accuracy =", self.accs)
 
         cb = [ModelCheckpoint(
@@ -481,7 +479,7 @@ class VideoClassifier:
         predictions = []
         ground_truths = []
         if self.train_mode == "early_fusion":
-            csv_fusion = self._load_early_csv("val")
+            csv_fusion = self.load_early_csv("val")
             print("CSV loaded", len(csv_fusion))
             gen = self.early_gen_new_val(csv_fusion, 1, "eval", stride)
             for x in gen:
