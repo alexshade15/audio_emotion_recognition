@@ -8,6 +8,7 @@ from os.path import basename, exists, dirname, isfile
 import numpy as np
 import keras
 from keras import Model, Input, regularizers
+from keras.layers import TimeDistributed, LSTMCell, Reshape, Dense, Lambda, Dropout, Concatenate
 from keras.callbacks import ModelCheckpoint, TensorBoard, LearningRateScheduler
 from keras.optimizers import Adam, SGD
 from sklearn.metrics import confusion_matrix, accuracy_score  # , classification_report
@@ -194,12 +195,12 @@ class VideoClassifier:
                     features[0][i - c][index] = np.array(from_arff_to_feture(audio_path)).reshape(self.feature_num, )
                     features[1][i - c][index] = frame_feature.reshape(1024,)
                 labels.append(ground_truth)
-                c += batch_size
-                if c + batch_size > len(clip_ids):
-                    c = 0
-                random.shuffle(clip_ids)
-                labels = self.lb.transform(np.array(labels)).reshape((batch_size, 7))
-                yield features, labels
+            c += batch_size
+            if c + batch_size > len(clip_ids):
+                c = 0
+            random.shuffle(clip_ids)
+            labels = self.lb.transform(np.array(labels)).reshape((batch_size, 7))
+            yield features, labels
 
     def early_gen_new_val(self, list_files, batch_size, mode="val", stride=1):
         """ stride 50% sul su tutti i file """
