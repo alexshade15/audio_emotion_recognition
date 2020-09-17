@@ -193,7 +193,7 @@ class VideoClassifier:
                         continue
                     frame_feature = np.load(frame_path)
                     features[0][i - c][index] = np.array(from_arff_to_feture(audio_path)).reshape(self.feature_num, )
-                    features[1][i - c][index] = frame_feature.reshape(1024,)
+                    features[1][i - c][index] = frame_feature.reshape(1024, )
                 labels.append(ground_truth)
             c += batch_size
             if c + batch_size > len(clip_ids):
@@ -222,7 +222,7 @@ class VideoClassifier:
                         frame_feature = np.load(frame_path)
                         features[0][c][index] = np.array(from_arff_to_feture(audio_path)).reshape(
                             self.feature_num, )
-                        features[1][c][index] = frame_feature.reshape(1024,)
+                        features[1][c][index] = frame_feature.reshape(1024, )
                     labels.append(ground_truth)
 
                     c += 1
@@ -236,9 +236,6 @@ class VideoClassifier:
     def early_gen_test_clip(self, list_files, clip_id, stride=1):
         """ stride su singolo file, quindi va richiamato per ogni file """
         ground_truth = list_files[0][0]
-        csv_path = '/user/vlongobardi/AFEW/aligned/Val/GroundTruth/ID.csv'
-        csv_path = csv_path.replace("GroundTruth", ground_truth).replace("ID", clip_id)
-        first_frame_num = int(list_files[0][1].split("_")[-1].split(".")[0])
         start = 0
         end = len(list_files) - self.time_step
         while True:
@@ -249,7 +246,7 @@ class VideoClassifier:
                 _, frame_path, audio_path = elem
                 frame_feature = np.load(frame_path)
                 features[0][0][index] = np.array(from_arff_to_feture(audio_path)).reshape(self.feature_num, )
-                features[1][0][index] = frame_feature.reshape(1024,)
+                features[1][0][index] = frame_feature.reshape(1024, )
             labels.append(ground_truth)
             start += self.time_step // stride
             if start >= end:
@@ -291,12 +288,8 @@ class VideoClassifier:
         train_gen = train_data["generator1"](train_files, train_data["batch_size"])
         no_of_training_images = len(train_files)
 
-        if self.train_mode == "early_fusion":
-            no_of_val_images = self.get_validation_dim()
-            # val_gen = train_data["generator2"](val_files, train_data["batch_size"], stride)
-        else:
-            no_of_val_images = len(val_files)
-            # val_gen = train_data["generator2"](val_files, train_data["batch_size"])
+        no_of_val_images = self.get_validation_dim()
+        val_gen = train_data["generator2"](val_files, train_data["batch_size"], 1)
 
         #  stride = 1,             no overlapping
         #  stride = 2,             overlapping: 50%
@@ -305,8 +298,7 @@ class VideoClassifier:
         model_name = "_lr" + str(train_data["lr"]) + "_Opt" + train_data["opt"] + "_Model" + str(
             train_data["model_name"]) + "_Feature" + self.feature_name + "_" + str(
             train_data["iteration"]) + "_" + self.train_mode  # + "_modelType" + str(self.model_type)
-        if self.train_mode == "early_fusion":
-            model_name += "stride" + str(self.stride)
+        model_name += "stride" + str(self.stride)
         model_name += ".h5"
 
         def custom_scheduler(epoch):
@@ -350,19 +342,18 @@ class VideoClassifier:
             monitor="val_accuracy", save_weights_only=True),
             TensorBoard(log_dir="NewFusionLogs/" + self.train_mode + "/" + self.feature_name, write_graph=True,
                         write_images=True)]
-        if self.train_mode == "early_fusion":
-            cb += [LearningRateScheduler(custom_scheduler)]
-        cb += [CheckValCMCallback(self, no_of_val_images, val_files, train_data["epoch"])]
+        cb += [LearningRateScheduler(custom_scheduler)]
+        # cb += [CheckValCMCallback(self, no_of_val_images, val_files, train_data["epoch"])]
         history = model.fit_generator(train_gen,
-                                      # validation_data=val_gen,
+                                      validation_data=val_gen,
                                       epochs=train_data["epoch"],
                                       steps_per_epoch=(no_of_training_images * 2 // train_data["batch_size"]),
-                                      # validation_steps=(no_of_val_images // train_data["batch_size"]),
+                                      validation_steps=(no_of_val_images // train_data["batch_size"]),
                                       workers=0, verbose=1, callbacks=cb)
         print("\n\nTrain_Accuracy =", history.history['accuracy'])
-        # print("\nVal_Accuracy =", history.history['val_accuracy'])
+        print("\nVal_Accuracy =", history.history['val_accuracy'])
         print("\n\nTrain_Loss =", history.history['loss'])
-        # print("\nVal_Loss =", history.history['val_loss'])
+        print("\nVal_Loss =", history.history['val_loss'])
 
     def print_stats(self, ground_truths, predictions, name):
         cm = confusion_matrix(ground_truths, predictions, self.classes)
