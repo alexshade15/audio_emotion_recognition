@@ -53,9 +53,12 @@ class VideoClassifier:
         self.stride = stride
 
         if video_model_path is not None:
+          try:
             self.model = my_model()
             self.model.load_weights(video_model_path)
             print("VideoClassifier loaded successfully", video_model_path)
+          except:
+            print("Exception")
         else:
             t_files = glob.glob(base_path + "Train" + "/*/*csv")
             v_files = glob.glob(base_path + "Val" + "/*/*csv")
@@ -66,8 +69,8 @@ class VideoClassifier:
         skips = 0
         iters = 1
         bs = 16
-        ep = 75
-        opts = ["SGD", "Adam"]
+        ep = 150
+        opts = ["SGD"]#, "Adam"]
         lrs = [0.01]
         models = [my_model]
         models_name = [x.__name__ for x in models]
@@ -208,7 +211,7 @@ class VideoClassifier:
         labels = features = []
         clip_ids = list(list_files.keys())
         while True:
-            for clip_id in clip_ids:
+            for clip_id in tqdm(clip_ids):
                 video_info = list_files[clip_id]
                 ground_truth = video_info[0][0]
 
@@ -289,7 +292,8 @@ class VideoClassifier:
         no_of_training_images = len(train_files)
 
         no_of_val_images = self.get_validation_dim()
-        val_gen = train_data["generator2"](val_files, train_data["batch_size"], 1)
+        print("no_of_val_images:", no_of_val_images)
+        val_gen = train_data["generator2"](val_files, train_data["batch_size"])
 
         #  stride = 1,             no overlapping
         #  stride = 2,             overlapping: 50%
@@ -302,8 +306,20 @@ class VideoClassifier:
         model_name += ".h5"
 
         def custom_scheduler(epoch):
-            print(0.1 / 10 ** (floor(epoch / 25) + 1))
-            return 0.1 / 10 ** (floor(epoch / 25) + 1)
+            if epoch < 50:
+                print(0.1)
+                return 0.1
+            if epoch < 100:
+                print(0.01)
+                return 0.01
+            if epoch < 125:
+                print(0.001)
+                return 0.001
+            else:
+                print(0.0001)
+                return 0.0001
+            #print(0.1 / 10 ** (floor(epoch / 40) + 1))
+            #return 0.1 / 10 ** (floor(epoch / 40) + 1)
 
         class CheckValCMCallback(keras.callbacks.Callback):
             def __init__(self, m, dim, validation_files, epoch):
@@ -315,20 +331,17 @@ class VideoClassifier:
                 self.accs = []
 
             def on_epoch_end(self, epoch, logs=None):
-                if self.vc.train_mode == "early_fusion":
-                    csv_fusion = self.vc.load_early_csv("val")
-                    # gen = self.vc.early_gen_new_val(csv_fusion, 16, "eval")
-                    # predictions = []
-                    # ground_truths = []
-                    # for x in gen:
-                    #     ground_truths.append(self.vc.lb.inverse_transform(x[1])[0])
-                    #     pred = self.model.predict(x[0])
-                    #     pred = self.vc.lb.inverse_transform(pred)
-                    #     predictions.append(pred[0])
-                    #     self.vc.print_stats(ground_truths, predictions, "Video" + str(epoch))
-                    gen = self.vc.early_gen_new_val(csv_fusion, 16, "eval")
-                else:
-                    gen = self.vc.late_gen(self.val_files, 16, "eval")
+                csv_fusion = self.vc.load_early_csv("val")
+                # gen = self.vc.early_gen_new_val(csv_fusion, 16, "eval")
+                # predictions = []
+                # ground_truths = []
+                # for x in gen:
+                #     ground_truths.append(self.vc.lb.inverse_transform(x[1])[0])
+                #     pred = self.model.predict(x[0])
+                #     pred = self.vc.lb.inverse_transform(pred)
+                #     predictions.append(pred[0])
+                #     self.vc.print_stats(ground_truths, predictions, "Video" + str(epoch))
+                gen = self.vc.early_gen_new_val(csv_fusion, 16, "eval")
                 acc = self.model.evaluate_generator(gen, self.dim, workers=0)
                 self.accs.append(acc)
                 print("Evaluate:", acc)
@@ -340,15 +353,15 @@ class VideoClassifier:
             filepath=str(
                 "weights_new_fusion/videoModel__t{accuracy:.4f}_epoch{epoch:02d}" + model_name),
             monitor="val_accuracy", save_weights_only=True),
-            TensorBoard(log_dir="NewFusionLogs/" + self.train_mode + "/" + self.feature_name, write_graph=True,
+            TensorBoard(log_dir="NewFusionLogs_sched/" + self.train_mode + "/" + self.feature_name, write_graph=True,
                         write_images=True)]
         cb += [LearningRateScheduler(custom_scheduler)]
-        # cb += [CheckValCMCallback(self, no_of_val_images, val_files, train_data["epoch"])]
+        #cb += [CheckValCMCallback(self, no_of_val_images, val_files, train_data["epoch"])]
         history = model.fit_generator(train_gen,
                                       validation_data=val_gen,
                                       epochs=train_data["epoch"],
                                       steps_per_epoch=(no_of_training_images * 2 // train_data["batch_size"]),
-                                      validation_steps=(no_of_val_images // train_data["batch_size"]),
+                                      validation_steps=(no_of_val_images),
                                       workers=0, verbose=1, callbacks=cb)
         print("\n\nTrain_Accuracy =", history.history['accuracy'])
         print("\nVal_Accuracy =", history.history['val_accuracy'])
