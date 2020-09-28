@@ -4,30 +4,29 @@ import glob
 import random
 import sys
 import librosa
+from tqdm import tqdm
 from math import ceil, floor
 from os.path import basename, exists, dirname
 
 import numpy as np
 
-np.seterr(divide='ignore', invalid='ignore')
 import keras
 from keras.callbacks import ModelCheckpoint, TensorBoard, LearningRateScheduler
-from keras.models import load_model
 from keras.optimizers import Adam, SGD
-from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
+from sklearn.metrics import confusion_matrix, accuracy_score
 from sklearn.preprocessing import LabelBinarizer
-from tqdm import tqdm
 
 from Dataset.Dataset_Utils.augmenter import NoAug
 from Dataset.Dataset_Utils.datagen import DataGenerator as DataGen
 from Dataset.Dataset_Utils.dataset_tools import print_cm
 from Models.model_sharma import SharmaNet
 from frames_classifier import FramesClassifier
-from yam_train import YamNetClassifier, get_feature_number
+from yam_train import YamNetClassifier
 from keras_yamnet.preprocessing import preprocess_input
 
 from test_models import *
 
+np.seterr(divide='ignore', invalid='ignore')
 classes = ["Angry", "Disgust", "Fear", "Happy", "Neutral", "Sad", "Surprise"]
 
 
@@ -49,7 +48,7 @@ class VideoClassifier:
             self.stride = stride
             self.feature_num = 1024
             if train_mode == "joint":
-                self.audio_feature = get_feature_number(feature_name)
+                self.audio_feature = self.ac.feature_number
 
         self.classes = classes
         self.lb = LabelBinarizer()
@@ -71,9 +70,9 @@ class VideoClassifier:
                 self.model = SharmaNet((self.time_step, 224, 224, 3), dim=self.model_type, audio_shape=(1024,))
                 self.model.load_weights(video_model_path)
                 print("VideoClassifier loaded successfully", video_model_path)
-            else:
+            elif self.train_mode == "joint":
                 self.model = SharmaNet((self.time_step, 224, 224, 3), dim=self.model_type, audio_shape=(1024,),
-                                       yam_shape=self.audio_feature)
+                                       yam_dim=self.audio_feature)
                 self.model.load_weights(video_model_path)
                 print("VideoClassifier loaded successfully", video_model_path)
         else:
@@ -127,12 +126,12 @@ class VideoClassifier:
                             train_infos["generator2"] = self.early_gen_new_val
                             t_files, v_files = self.csv_fusion["train"], self.csv_fusion["val"]
                             m = model((self.time_step, 224, 224, 3), dim=self.model_type, audio_shape=(1024,))
-                        else:
+                        elif self.train_mode == "joint":
                             train_infos["generator1"] = self.joint_gen_train
                             train_infos["generator2"] = self.joint_val_gen
                             t_files, v_files = self.csv_fusion["train"], self.csv_fusion["val"]
                             m = model((self.time_step, 224, 224, 3), dim=self.model_type, audio_shape=(1024,),
-                                      yam_shape=self.audio_feature)
+                                      yam_dim=self.audio_feature)
                         self.model = self.train(t_files, v_files, train_infos, m)
 
     def load_early_csv(self, dataset):
@@ -388,8 +387,8 @@ class VideoClassifier:
         random.shuffle(clip_ids)
         while True:
             labels = []
-            features = [np.zeros((batch_size, self.audio_feature, 64)).astype('float'),
-                        np.zeros((batch_size, self.time_step, 224, 224, 3)).astype('float')]
+            features = [np.zeros((batch_size, self.audio_feature, 64)).astype('float')] * self.time_step
+            features += [np.zeros((batch_size, self.time_step, 224, 224, 3)).astype('float')]
             for i in range(c, c + batch_size):
                 try:
                     clip_id = clip_ids[i]
@@ -414,7 +413,7 @@ class VideoClassifier:
                             add = signal[:298368 % len(signal)]
                             signal = np.concatenate([mul, add])
                         # features[index][i - c]
-                        features[0][i - c] = preprocess_input(signal, sound_sr).reshape(1, self.audio_feature, 64)
+                        features[index][i - c] = preprocess_input(signal, sound_sr).reshape(1, self.audio_feature, 64)
                         features[-1][i - c][index] = images[first_frame_num + start + index]
                     labels.append(ground_truth)
                 except:
@@ -448,8 +447,8 @@ class VideoClassifier:
                     for start in range(0, len(video_info) - self.time_step, self.time_step // stride):
                         if c == 0:
                             labels = []
-                            features = [np.zeros((batch_size, self.audio_feature, 64)).astype('float'),
-                                        np.zeros((batch_size, self.time_step, 224, 224, 3)).astype('float')]
+                            features = [np.zeros((batch_size, self.audio_feature, 64)).astype('float')] * self.time_step
+                            features += [np.zeros((batch_size, self.time_step, 224, 224, 3)).astype('float')]
 
                         for index, elem in enumerate(video_info[start:self.time_step + start]):
 
@@ -464,9 +463,8 @@ class VideoClassifier:
                                 add = signal[:298368 % len(signal)]
                                 signal = np.concatenate([mul, add])
                             # features[index][c] = mel
-                            features[0][c] = preprocess_input(signal, sound_sr).reshape(1, self.audio_feature, 64)
+                            features[index][c] = preprocess_input(signal, sound_sr).reshape(1, self.audio_feature, 64)
                             features[-1][c][index] = images[first_frame_num + start + index]
-                            features[index][c] = np.load(audio_path).reshape(self.feature_num, )
                         labels.append(ground_truth)
                         c += 1
                         if c == batch_size:
@@ -491,8 +489,8 @@ class VideoClassifier:
         end = len(list_files) - self.time_step
         while True:
             labels = []
-            features = [np.zeros((1, self.audio_feature, 64)).astype('float'),
-                        np.zeros((1, self.time_step, 224, 224, 3)).astype('float')]
+            features = [np.zeros((1, self.audio_feature, 64)).astype('float')] * self.time_step
+            features += [np.zeros((1, self.time_step, 224, 224, 3)).astype('float')]
             images = DataGen(csv_path, '', 1, 31, NoAug(), 16, 1, 12, test=True)[0][0][0]
             for index, elem in enumerate(list_files[start:start + self.time_step]):
 
@@ -584,7 +582,7 @@ class VideoClassifier:
                 # print("Epoch:", epoch)
                 if self.vc.train_mode == "early_fusion":
                     csv_fusion = self.vc.load_early_csv("val")
-                    gen = self.vc.early_gen_new_val(csv_fusion, 16, "eval", 1)
+                    gen = self.vc.early_gen_new_val(csv_fusion, 16, "eval")
                     va = self.model.evaluate_generator(gen, self.dim, workers=0)
                     print("Evaluate:", va)
                     self.val_accs.append(va)
@@ -593,7 +591,7 @@ class VideoClassifier:
 
                 if self.vc.train_mode == "joint":
                     csv_fusion = self.vc.load_early_csv("val")
-                    gen = self.vc.joint_val_gen(csv_fusion, 16, "eval", 1)
+                    gen = self.vc.joint_val_gen(csv_fusion, 16, "eval")
                     va = self.model.evaluate_generator(gen, self.dim, workers=0)
                     print("Evaluate:", va)
                     self.val_accs.append(va)
@@ -632,7 +630,7 @@ class VideoClassifier:
                                       # validation_data=val_gen,
                                       epochs=train_data["epoch"],
                                       steps_per_epoch=(no_of_training_images // train_data["batch_size"]),
-                                      # validation_steps=(no_of_val_images // train_data["batch_size"]),
+                                      # validation_steps=(no_of_val_images),
                                       workers=0, verbose=1, callbacks=cb)
         print("\n\nTrain_Accuracy =", history.history['accuracy'])
         # print("\nVal_Accuracy =", history.history['val_accuracy'])
